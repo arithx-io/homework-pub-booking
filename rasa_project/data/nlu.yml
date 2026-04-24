@@ -1,0 +1,21 @@
+version: "3.1"
+
+# CALM leans on the LLM for intent understanding, so the NLU section
+# is minimal. You can add examples if the LLM struggles to map natural
+# language to the programmatic triggers '/confirm_booking',
+# '/resume_from_loop', '/request_research'. For the homework's grader,
+# RasaStructuredHalf sends the programmatic strings directly — these
+# examples are mostly for debugging in the Rasa UI.
+
+nlu:
+  - intent: confirm_booking
+    examples: |
+      - please confirm the booking
+      - book it
+      - we'll take it
+      - confirmed
+
+  - intent: resume_from_loop
+    examples: |
+      - the agent has proposed a venue
+      - resume from loop half

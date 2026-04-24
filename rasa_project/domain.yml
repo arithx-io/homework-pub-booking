@@ -1,0 +1,58 @@
+# Rasa domain — slots, responses, and actions the flows reference.
+# Intents are NOT listed here explicitly (CALM uses flows + the LLM
+# command generator; intent recognition is optional).
+
+version: "3.1"
+
+slots:
+  venue_id:
+    type: text
+    mappings:
+      - type: from_llm
+  date:
+    type: text
+    mappings:
+      - type: from_llm
+  time:
+    type: text
+    mappings:
+      - type: from_llm
+  party_size:
+    type: float
+    mappings:
+      - type: from_llm
+  deposit_gbp:
+    type: float
+    mappings:
+      - type: from_llm
+  duration_hours:
+    type: float
+    initial_value: 3
+    mappings:
+      - type: from_llm
+  validation_error:
+    type: text
+    mappings:
+      - type: controlled
+  booking_reference:
+    type: text
+    mappings:
+      - type: controlled
+
+responses:
+  utter_booking_confirmed:
+    - text: "Booking confirmed. Reference: {booking_reference}."
+  utter_booking_rejected:
+    - text: "Sorry, we can't accept this booking. Reason: {validation_error}"
+  utter_need_more_info:
+    - text: "I need a few more details before I can confirm."
+  utter_returning_to_research:
+    - text: "Let me hand this back to the research agent for an alternative."
+
+actions:
+  - action_validate_booking
+
+# Sessions intentionally minimal — Ex6 doesn't need carryover.
+session_config:
+  session_expiration_time: 60
+  carry_over_slots_to_new_session: false

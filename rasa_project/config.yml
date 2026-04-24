@@ -1,0 +1,17 @@
+# Rasa CALM pipeline — minimal config for Ex6.
+# Rasa Pro is required (CALM is Rasa Pro only). See docs/rasa-docker.md.
+
+recipe: default.v1
+language: en
+assistant_id: homework-pub-booking
+
+pipeline:
+  - name: SingleStepLLMCommandGenerator
+    llm:
+      model_name: meta-llama/Llama-3.3-70B-Instruct
+      provider: openai
+      # OPENAI_API_BASE and OPENAI_API_KEY come from endpoints.yml
+      # environment; we point at Nebius Token Factory.
+
+policies:
+  - name: FlowPolicy

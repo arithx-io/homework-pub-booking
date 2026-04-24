@@ -1,0 +1,12 @@
+# Action server endpoint. The custom action container listens on 5055.
+
+action_endpoint:
+  url: "http://action-server:5055/webhook"
+
+# LLM backend — points at Nebius Token Factory via OpenAI-compatible API.
+# The NEBIUS_KEY env variable must be forwarded into the Rasa container
+# (docker-compose.yml handles this; see docs/rasa-docker.md).
+llm:
+  type: openai
+  api_base: "https://api.tokenfactory.nebius.com/v1/"
+  api_key_env: NEBIUS_KEY

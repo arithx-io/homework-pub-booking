@@ -1,0 +1,59 @@
+# Rasa CALM flows. Three flows to implement.
+#
+# THIS FILE IS A SCAFFOLD. Each flow below has a minimal shape; expand
+# each one so it satisfies the behaviour described in ASSIGNMENT.md §Ex6.
+
+flows:
+
+  # ─────────────────────────────────────────────────────────────────
+  # confirm_booking — the happy path.
+  #
+  # Entry: user sends /confirm_booking with booking metadata
+  # (venue_id, date, time, party_size, deposit_gbp).
+  #
+  # Steps:
+  #   1. Validate via ActionValidateBooking.
+  #   2. If validation_error is set → utter_booking_rejected, end.
+  #   3. Otherwise → set booking_reference, utter_booking_confirmed, end.
+  # ─────────────────────────────────────────────────────────────────
+  confirm_booking:
+    description: Confirm a new pub booking after validation.
+    steps:
+      - action: action_validate_booking
+      # TODO: add branch on validation_error slot.
+      # TODO: on success, generate a booking_reference (e.g. 'BK-<hash>')
+      #       and utter_booking_confirmed.
+
+  # ─────────────────────────────────────────────────────────────────
+  # resume_from_loop — re-entry point when the loop half hands off.
+  #
+  # Entry: user sends /resume_from_loop (triggered programmatically
+  # by RasaStructuredHalf after it receives a forward-handoff).
+  #
+  # Steps:
+  #   1. Echo the received booking data back for confirmation.
+  #   2. Jump into the confirm_booking flow.
+  # ─────────────────────────────────────────────────────────────────
+  resume_from_loop:
+    description: Resume booking confirmation when handed off from the loop half.
+    steps:
+      # TODO: collect required slots if any are missing, then link to confirm_booking.
+      - action: utter_need_more_info
+
+  # ─────────────────────────────────────────────────────────────────
+  # request_research — flow that explicitly bounces BACK to the loop half.
+  #
+  # Entry: ActionValidateBooking determined the request needs
+  # re-research (e.g. party too large for the venue).
+  #
+  # Steps:
+  #   1. Utter a message explaining the handoff back.
+  #   2. Set a custom metadata field so RasaStructuredHalf knows to
+  #      return next_action=escalate with reason.
+  # ─────────────────────────────────────────────────────────────────
+  request_research:
+    description: Return control to the research agent for an alternative venue.
+    steps:
+      - action: utter_returning_to_research
+      # TODO: emit a custom json payload so RasaStructuredHalf can parse
+      # it into HalfResult.next_action='escalate'.

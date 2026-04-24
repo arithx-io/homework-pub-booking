@@ -1,0 +1,67 @@
+[project]
+name = "homework-pub-booking"
+version = "2026.04.0"
+description = "Week-5 homework for the sovereign-agent course: a hybrid pub-booking agent."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+license = { text = "MIT" }
+
+# Pinned to exactly 0.2.0 for cohort-1. Once 0.2.x has shown a stable
+# patch history (a few patch releases, no accidental API changes) we
+# will relax to ~= 0.2.0 in a future cohort tag. See README.md §pinning.
+dependencies = [
+  "sovereign-agent == 0.2.0",
+  "python-dotenv >= 1.0.0",
+  "pyyaml >= 6.0",
+]
+
+[project.optional-dependencies]
+voice = [
+  # Speechmatics python client; ElevenLabs is pulled in via sovereign-agent[voice]
+  # if you choose to use it. Text-only mode needs NONE of these.
+  "speechmatics-python >= 1.11.0",
+]
+rasa = [
+  # Keeps the rasa deps out of the default install; Ex6 installs these
+  # explicitly. Rasa Pro has tight pins — resolving it alongside every
+  # other extra causes avoidable pain.
+  "sovereign-agent[rasa] == 0.2.0",
+]
+
+[dependency-groups]
+dev = [
+  "pytest >= 8.0",
+  "pytest-asyncio >= 0.23",
+  "ruff >= 0.5",
+  "pyyaml >= 6.0",
+]
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["starter*", "grader*"]
+exclude = ["tests*", "answers*", "rasa_project*", "scripts*", "docs*"]
+
+# ─ Tooling ─────────────────────────────────────────────────────────────
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests/public", "tests/private"]
+python_files = ["test_*.py"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B"]
+ignore = ["E501"]
+
+[tool.uv]
+# Lockfile is committed (`uv.lock`) so every student gets byte-identical
+# installs. Regenerate only via `uv lock --upgrade` when we deliberately
+# want a newer patch of a transitive dep.

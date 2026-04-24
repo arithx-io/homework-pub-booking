@@ -1,0 +1,14 @@
+{
+  "edinburgh": {
+    "2026-04-24": {"condition": "rainy", "temperature_c": 11, "precip_mm": 4.2, "wind_kph": 22},
+    "2026-04-25": {"condition": "cloudy", "temperature_c": 12, "precip_mm": 0.0, "wind_kph": 15},
+    "2026-04-26": {"condition": "partly_cloudy", "temperature_c": 14, "precip_mm": 0.1, "wind_kph": 10},
+    "2026-04-27": {"condition": "sunny", "temperature_c": 16, "precip_mm": 0.0, "wind_kph": 8},
+    "2026-04-28": {"condition": "rainy", "temperature_c": 10, "precip_mm": 6.5, "wind_kph": 28},
+    "2026-05-01": {"condition": "sunny", "temperature_c": 17, "precip_mm": 0.0, "wind_kph": 6},
+    "2026-05-02": {"condition": "cloudy", "temperature_c": 13, "precip_mm": 0.2, "wind_kph": 12}
+  },
+  "glasgow": {
+    "2026-04-25": {"condition": "rainy", "temperature_c": 10, "precip_mm": 7.1, "wind_kph": 30}
+  }
+}

@@ -1,0 +1,72 @@
+[
+  {
+    "id": "haymarket_tap",
+    "name": "Haymarket Tap",
+    "area": "Haymarket",
+    "address": "12 Dalry Rd, Edinburgh EH11 2BG",
+    "open_now": true,
+    "seats_available_evening": 8,
+    "hire_fee_gbp": 0,
+    "min_spend_gbp": 200,
+    "manager_email": "haymarket-tap@example.invalid",
+    "licensed_hours": "11:00-00:30",
+    "accepts_card": true,
+    "outdoor_space": false
+  },
+  {
+    "id": "royal_oak",
+    "name": "The Royal Oak",
+    "area": "Old Town",
+    "address": "1 Infirmary St, Edinburgh EH1 1LT",
+    "open_now": true,
+    "seats_available_evening": 16,
+    "hire_fee_gbp": 50,
+    "min_spend_gbp": 400,
+    "manager_email": "royal-oak@example.invalid",
+    "licensed_hours": "11:00-01:00",
+    "accepts_card": true,
+    "outdoor_space": false
+  },
+  {
+    "id": "sheep_heid",
+    "name": "The Sheep Heid Inn",
+    "area": "Duddingston",
+    "address": "43-45 The Causeway, Edinburgh EH15 3QA",
+    "open_now": false,
+    "seats_available_evening": 0,
+    "hire_fee_gbp": 100,
+    "min_spend_gbp": 600,
+    "manager_email": "sheep-heid@example.invalid",
+    "licensed_hours": "12:00-23:00",
+    "accepts_card": true,
+    "outdoor_space": true
+  },
+  {
+    "id": "bennets_bar",
+    "name": "Bennet's Bar",
+    "area": "Tollcross",
+    "address": "8 Leven St, Edinburgh EH3 9LG",
+    "open_now": true,
+    "seats_available_evening": 24,
+    "hire_fee_gbp": 75,
+    "min_spend_gbp": 500,
+    "manager_email": "bennets@example.invalid",
+    "licensed_hours": "11:00-01:00",
+    "accepts_card": true,
+    "outdoor_space": false
+  },
+  {
+    "id": "cafe_royal",
+    "name": "Cafe Royal",
+    "area": "New Town",
+    "address": "19 W Register St, Edinburgh EH2 2AA",
+    "open_now": true,
+    "seats_available_evening": 40,
+    "hire_fee_gbp": 200,
+    "min_spend_gbp": 1200,
+    "manager_email": "cafe-royal@example.invalid",
+    "licensed_hours": "11:00-23:00",
+    "accepts_card": true,
+    "outdoor_space": false
+  }
+]

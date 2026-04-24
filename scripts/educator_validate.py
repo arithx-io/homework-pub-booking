@@ -145,8 +145,15 @@ def restore_starter() -> None:
 
 
 def apply_solution() -> int:
-    """Run the apply_solution.sh shell script."""
-    rc, _out, err = _run(["bash", str(SOLUTION / "apply_solution.sh")])
+    """Run the apply_solution.sh shell script.
+
+    We pass --force because the harness manages Rasa's lifecycle itself
+    (spawns + kills processes as part of running ex6-real in tier 3).
+    Without --force, apply_solution.sh refuses when it detects running
+    rasa/action-server processes — which is correct for humans running
+    it manually, but wrong for the harness.
+    """
+    rc, _out, err = _run(["bash", str(SOLUTION / "apply_solution.sh"), "--force"])
     if rc != 0:
         print(_C.r("✗") + " apply_solution.sh failed")
         print(err)

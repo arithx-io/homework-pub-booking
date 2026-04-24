@@ -154,6 +154,35 @@ def print_bootstrap_message(rasa_detail: str, actions_detail: str) -> None:
     print()
 
 
+def _print_notimpl_bootstrap(tail: str) -> None:
+    """Friendly message when the scenario runs but hits a TODO stub."""
+    print()
+    print(_C.y("━" * 72))
+    print(_C.b("  Ex6 — Rasa is up, but YOUR code isn't complete yet"))
+    print(_C.y("━" * 72))
+    print()
+    print("  The two Rasa services are reachable. Your scenario started, but")
+    print("  hit a NotImplementedError in one of your starter files.")
+    print()
+    print(_C.b("  The stack trace above tells you which file + line."))
+    print()
+    print("  Most likely candidates (implement in order):")
+    print()
+    print("    1. " + _C.cyan("starter/rasa_half/validator.py"))
+    print("       → implement " + _C.b("normalise_booking_payload()"))
+    print()
+    print("    2. " + _C.cyan("starter/rasa_half/structured_half.py"))
+    print("       → implement " + _C.b("RasaStructuredHalf.run()"))
+    print()
+    print("  When both are done, re-run " + _C.cyan("make ex6-real") + ".")
+    print()
+    print("  Need the reference pattern? sovereign-agent ships one at")
+    print("    " + _C.cyan("sovereign-agent/examples/pub_booking/run.py"))
+    print()
+    print(_C.y("━" * 72))
+    print()
+
+
 def main() -> int:
     # Probe both services. We want to tell the student precisely what's
     # up and what's not so they can fix the exact problem.
@@ -169,13 +198,32 @@ def main() -> int:
         print()
         print(_C.b("▶ Running Ex6 scenario..."))
         print()
-        # Delegate to the actual scenario runner. The starter code gets
-        # --real and uses the probed Rasa URL via localhost defaults.
+        # Capture output so we can detect NotImplementedError and turn
+        # it into a friendly message. Students staring at a raw stack
+        # trace don't realise the fix is to finish their TODOs.
         proc = subprocess.run(
             [sys.executable, "-m", "starter.rasa_half.run", "--real"],
             cwd=REPO,
             env={**os.environ},
+            capture_output=True,
+            text=True,
         )
+        # Always print the subprocess output verbatim first so students
+        # see everything their scenario did.
+        if proc.stdout:
+            print(proc.stdout, end="")
+        if proc.stderr:
+            print(proc.stderr, end="", file=sys.stderr)
+
+        # If a NotImplementedError came out of the scenario, wrap with
+        # pedagogical framing.
+        combined = (proc.stdout or "") + (proc.stderr or "")
+        if proc.returncode != 0 and "NotImplementedError" in combined:
+            tail_lines = [
+                ln for ln in combined.splitlines() if "NotImplementedError" in ln
+            ]
+            _print_notimpl_bootstrap("\n".join(tail_lines))
+
         return proc.returncode
 
     # At least one side is down → pedagogical message, exit 1

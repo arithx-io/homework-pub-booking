@@ -1,17 +1,29 @@
 # Rasa CALM pipeline — minimal config for Ex6.
-# Rasa Pro is required (CALM is Rasa Pro only). See docs/rasa-docker.md.
+# Rasa Pro is required (CALM is Rasa Pro only).
+#
+# NOTE: LLM and embedding configuration live in endpoints.yml under
+# `model_groups:` — this moved out of config.yml in Rasa 3.16+ and
+# defining LLM config inline here is deprecated (removed in Rasa 4.0).
 
 recipe: default.v1
 language: en
 assistant_id: homework-pub-booking
 
 pipeline:
-  - name: SingleStepLLMCommandGenerator
+  # CompactLLMCommandGenerator is the current default for Rasa CALM.
+  # SingleStepLLMCommandGenerator is deprecated in 3.16+ and removed
+  # in 4.0.
+  #
+  # `llm:` and `embeddings:` reference model_groups defined in
+  # endpoints.yml by id. This keeps LLM config in one place.
+  - name: CompactLLMCommandGenerator
     llm:
-      model_name: meta-llama/Llama-3.3-70B-Instruct
-      provider: openai
-      # OPENAI_API_BASE and OPENAI_API_KEY come from endpoints.yml
-      # environment; we point at Nebius Token Factory.
+      model_group: nebius_llm
+    embeddings:
+      model_group: nebius_embeddings
+    # Flow retrieval is on by default in 3.16; leaving as default.
+    # flow_retrieval:
+    #   active: true
 
 policies:
   - name: FlowPolicy

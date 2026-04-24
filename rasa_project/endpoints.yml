@@ -1,12 +1,55 @@
-# Action server endpoint. The custom action container listens on 5055.
+# Rasa endpoints — action server URL + LLM/embedding model groups.
+#
+# The homework keeps LLM config in this file (not config.yml) — that's
+# Rasa's 3.16+ recommendation. Both the command-generator and the
+# embeddings provider are referenced by id from config.yml.
 
+# ==============================================================================
+# Action server
+# ==============================================================================
+# When you run `make rasa-actions` and `make rasa-serve` in separate
+# terminals, both are on localhost. Change this URL if you deploy to
+# a container or remote host.
 action_endpoint:
-  url: "http://action-server:5055/webhook"
+  url: "http://localhost:5055/webhook"
 
-# LLM backend — points at Nebius Token Factory via OpenAI-compatible API.
-# The NEBIUS_KEY env variable must be forwarded into the Rasa container
-# (docker-compose.yml handles this; see docs/rasa-docker.md).
-llm:
-  type: openai
-  api_base: "https://api.tokenfactory.nebius.com/v1/"
-  api_key_env: NEBIUS_KEY
+
+# ==============================================================================
+# LLM model groups — all point at Nebius Token Factory
+# ==============================================================================
+# IMPORTANT: Rasa's command generator parses structured commands
+# (StartFlow, SetSlot, etc.) out of the LLM's response. Reasoning
+# models emit <think>...</think> blocks before their final output,
+# and Rasa's parser doesn't handle that cleanly. ALWAYS use an
+# **instruct** model here, never a thinking/reasoning one.
+#
+# Good instruct models on Nebius:
+#   meta-llama/Llama-3.3-70B-Instruct
+#   meta-llama/Llama-3.1-70B-Instruct
+#   Qwen/Qwen3-32B                    (the non-thinking variant)
+#   MiniMaxAI/MiniMax-M2.5             (instruct, good at tool-calling)
+#
+# Do NOT use:
+#   Qwen/Qwen3-Next-80B-A3B-Thinking  ← emits <think> tags, breaks Rasa
+#   DeepSeek-R1*, o3-mini, etc.
+#
+# `api_key: ${NEBIUS_KEY}` — Rasa does env-variable substitution here,
+# so NEBIUS_KEY from your .env flows through. No OPENAI_API_KEY needed.
+
+model_groups:
+  - id: nebius_llm
+    models:
+      - provider: self-hosted
+        model: meta-llama/Llama-3.3-70B-Instruct
+        api_base: "https://api.tokenfactory.nebius.com/v1"
+        api_key: ${NEBIUS_KEY}
+        temperature: 0.1
+        max_tokens: 1024
+        timeout: 30
+
+  - id: nebius_embeddings
+    models:
+      - provider: self-hosted
+        model: Qwen/Qwen3-Embedding-8B
+        api_base: "https://api.tokenfactory.nebius.com/v1"
+        api_key: ${NEBIUS_KEY}

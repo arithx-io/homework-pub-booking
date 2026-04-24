@@ -49,6 +49,33 @@ more effectively than any lecture.
 
 ---
 
+## Critical — instruct models only for Rasa's command generator
+
+Rasa's `CompactLLMCommandGenerator` parses the LLM's output into
+structured commands (`StartFlow`, `SetSlot`, etc.). Reasoning models
+like `Qwen3-Next-80B-A3B-Thinking`, `DeepSeek-R1`, or `o3-mini` emit
+`<think>...</think>` blocks before their final output. Rasa's parser
+doesn't handle that — it chokes on the tags.
+
+**Always configure Rasa with an instruct model.** Our `endpoints.yml`
+defaults to `meta-llama/Llama-3.3-70B-Instruct` on Nebius for this
+reason.
+
+Safe choices for Nebius:
+
+| Model | Notes |
+|---|---|
+| `meta-llama/Llama-3.3-70B-Instruct` | Default. Good command-parsing reliability. |
+| `meta-llama/Llama-3.1-70B-Instruct` | Older, slightly cheaper. |
+| `Qwen/Qwen3-32B` | Qwen instruct line (NOT the `-Thinking` variant). |
+| `MiniMaxAI/MiniMax-M2.5` | Good tool-calling support. |
+
+**Never** use a model with `-Thinking` or `R1` in its name for Rasa's
+command generator. Your scenario may still use a reasoning model for
+planning (Ex5, Ex7) — those aren't subject to Rasa's parser constraint.
+
+---
+
 ## The three processes
 
 ```
@@ -221,6 +248,33 @@ RASA_PRO_LICENSE="your-jwt" rasa train --help
 ```
 
 If that prints help text without license errors, the token is valid.
+
+### "Environment variables: ['OPENAI_API_KEY'] not set"
+
+You're seeing this because Rasa's LiteLLM-backed client validates env
+vars before calling out. Two possible causes:
+
+1. **Old config format.** Check `rasa_project/config.yml` — if it still
+   has an inline `llm:` block with `provider: openai`, move LLM config
+   to `endpoints.yml` under `model_groups:`. See this repo's current
+   `endpoints.yml` as the reference shape.
+
+2. **The `${NEBIUS_KEY}` substitution isn't reaching Rasa.** The
+   Makefile's `rasa-*` targets set `OPENAI_API_KEY="${NEBIUS_KEY}"`
+   as a safety net, so this shouldn't happen — but if you're running
+   `rasa train` directly (without `make`), export it yourself:
+
+   ```bash
+   cd rasa_project
+   export OPENAI_API_KEY="$NEBIUS_KEY"
+   rasa train
+   ```
+
+### "SingleStepLLMCommandGenerator is deprecated"
+
+Warning, not an error. Our `config.yml` uses the current name
+`CompactLLMCommandGenerator`. If you've copied an older Rasa example
+into your project, update the generator name.
 
 ### "training failed: flow syntax"
 

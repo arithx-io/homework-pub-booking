@@ -137,13 +137,13 @@ setup-rasa: ## Install rasa-pro + deps (needed for Ex6 tier 2 and 3)
 .PHONY: rasa-train
 rasa-train: ## Train the Rasa model (reruns use the cached model)
 	$(_rasa_preflight)
-	@cd rasa_project && $(UV) run rasa train
+	@cd rasa_project && OPENAI_API_KEY="$${NEBIUS_KEY}" $(UV) run rasa train
 
 .PHONY: rasa-actions
 rasa-actions: ## Terminal 1 — run the Rasa action server on :5055
 	$(_rasa_preflight)
 	@echo "▶ Starting Rasa action server (port 5055). Ctrl-C to stop."
-	@cd rasa_project && $(UV) run rasa run actions -p 5055
+	@cd rasa_project && OPENAI_API_KEY="$${NEBIUS_KEY}" $(UV) run rasa run actions -p 5055
 
 .PHONY: rasa-serve
 rasa-serve: ## Terminal 2 — run the Rasa server on :5005 (trains if needed)
@@ -151,10 +151,10 @@ rasa-serve: ## Terminal 2 — run the Rasa server on :5005 (trains if needed)
 	@cd rasa_project && \
 	  if [ ! -d models ] || [ -z "$$(ls -A models 2>/dev/null)" ]; then \
 	    echo "▶ No trained model found; running rasa train first..."; \
-	    $(UV) run rasa train; \
+	    OPENAI_API_KEY="$${NEBIUS_KEY}" $(UV) run rasa train; \
 	  fi
 	@echo "▶ Starting Rasa server (port 5005). Ctrl-C to stop."
-	@cd rasa_project && $(UV) run rasa run --enable-api --cors "*" -p 5005
+	@cd rasa_project && OPENAI_API_KEY="$${NEBIUS_KEY}" $(UV) run rasa run --enable-api --cors "*" -p 5005
 
 .PHONY: rasa-clean
 rasa-clean: ## Remove Rasa's trained models and cache

@@ -160,17 +160,89 @@ def apply_solution() -> int:
     return rc
 
 
+def _find_latest_session_dir(scenario_hint: str) -> Path | None:
+    """Find the most recent session dir for a scenario. Looks in both
+    repo-local sessions/ and the platform user-data dir."""
+    candidates: list[Path] = []
+    if (REPO / "sessions").exists():
+        candidates.extend((REPO / "sessions").glob(f"*{scenario_hint}*"))
+        candidates.extend((REPO / "sessions").glob("sess_*"))
+
+    # platform dir
+    if sys.platform == "darwin":
+        data_root = Path.home() / "Library" / "Application Support" / "sovereign-agent"
+    elif sys.platform == "win32":
+        root = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+        data_root = Path(root) / "sovereign-agent"
+    else:
+        data_root = (
+            Path(os.environ.get("XDG_DATA_HOME") or Path.home() / ".local" / "share")
+            / "sovereign-agent"
+        )
+    if data_root.exists():
+        for ex_dir in data_root.glob(f"examples/*{scenario_hint}*"):
+            candidates.extend(ex_dir.glob("sess_*"))
+
+    candidates = [c for c in candidates if c.is_dir()]
+    if not candidates:
+        return None
+    candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return candidates[0]
+
+
+def _scan_trace_for_failures(session_dir: Path) -> list[str]:
+    """Return list of human-readable tool-failure descriptions from trace.jsonl."""
+    import json as _json
+
+    trace = session_dir / "logs" / "trace.jsonl"
+    if not trace.exists():
+        return []
+    failures: list[str] = []
+    for line in trace.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            e = _json.loads(line)
+        except _json.JSONDecodeError:
+            continue
+        if e.get("event_type") == "executor.tool_called":
+            p = e.get("payload") or {}
+            if not p.get("success", True):
+                summary = (p.get("summary") or "").replace("\n", " ")[:140]
+                failures.append(f"{p.get('tool', '?')}: {summary}")
+    return failures
+
+
 def run_scenario(name: str, module: str, extra_args: list[str] | None = None) -> tuple[bool, str]:
-    """Run one scenario module. Return (passed, summary)."""
+    """Run one scenario module. Return (passed, summary).
+
+    "Passing" requires BOTH exit 0 AND no failed tool calls in the
+    session's trace.jsonl. A scenario can exit 0 even when an internal
+    tool call failed (e.g. handoff succeeded with degraded data but
+    the bridge still completed), so we scan for it.
+    """
     extra_args = extra_args or []
     cmd = ["uv", "run", "python", "-m", module, *extra_args]
-    # Real-mode scenarios take longer (Docker pull, Rasa train, real LLM latency)
     timeout = 600 if "--real" in extra_args else 120
     rc, out, err = _run(cmd, timeout=timeout)
-    if rc == 0:
-        return True, f"{name}: ran cleanly"
-    tail = (out + err).strip().splitlines()[-5:]
-    return False, f"{name}: exit {rc} — " + " | ".join(tail)
+
+    if rc != 0:
+        tail = (out + err).strip().splitlines()[-5:]
+        return False, f"{name}: exit {rc} — " + " | ".join(tail)
+
+    # Exit 0 — now check for failed tool calls in the latest session.
+    # Module name like 'starter.edinburgh_research.run' → 'edinburgh-research'
+    scenario_hint = module.split(".")[1].replace("_", "-") if "." in module else module
+    session_dir = _find_latest_session_dir(scenario_hint)
+    if session_dir is None:
+        return True, f"{name}: ran cleanly (no session found to audit)"
+
+    failures = _scan_trace_for_failures(session_dir)
+    if failures:
+        preview = " · ".join(failures[:2])
+        return False, f"{name}: tool failures in session — {preview}"
+    return True, f"{name}: ran cleanly"
 
 
 def run_grader() -> tuple[int, int, str]:

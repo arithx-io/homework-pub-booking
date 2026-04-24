@@ -62,17 +62,38 @@ class IntegrityResult:
 # Helpers
 # ---------------------------------------------------------------------------
 def extract_money_facts(text: str) -> list[str]:
-    return re.findall(r"£\d+(?:\.\d+)?", text)
+    """Find all £<number> occurrences, HTML tags stripped or not."""
+    # Strip HTML tags first so e.g. <dd>£540</dd> matches cleanly.
+    stripped = re.sub(r"<[^>]+>", " ", text)
+    return re.findall(r"£\d+(?:\.\d+)?", stripped)
 
 
 def extract_temperature_facts(text: str) -> list[str]:
-    return list({m.group(1) for m in re.finditer(r"(\d+)\s*(?:°\s*)?[Cc]\b", text)})
+    """Find temperature mentions (number followed by °C or C)."""
+    stripped = re.sub(r"<[^>]+>", " ", text)
+    return list({m.group(1) for m in re.finditer(r"(\d+)\s*°?\s*[Cc]\b", stripped)})
 
 
 def extract_condition_facts(text: str) -> list[str]:
+    """Find weather condition keywords."""
+    stripped = re.sub(r"<[^>]+>", " ", text)
+    tl = stripped.lower()
     known = ("sunny", "rainy", "cloudy", "partly_cloudy", "partly cloudy")
-    tl = text.lower()
     return [c for c in known if c in tl]
+
+
+def extract_testid_facts(text: str) -> dict[str, str]:
+    """For HTML flyers that use data-testid, extract {testid: value} pairs.
+
+    This is the preferred path for HTML — it gives us structured facts
+    (e.g. {'total': '£540', 'deposit': '£0'}) instead of loose regex
+    matches. The solution flyer ships with data-testid on every fact.
+    """
+    pattern = re.compile(
+        r'<[^>]+data-testid="([^"]+)"[^>]*>([^<]+)</[^>]+>',
+        re.IGNORECASE,
+    )
+    return {m.group(1): m.group(2).strip() for m in pattern.finditer(text)}
 
 
 def fact_appears_in_log(fact: Any, log: list[ToolCallRecord] | None = None) -> bool:
@@ -151,6 +172,7 @@ __all__ = [
     "extract_condition_facts",
     "extract_money_facts",
     "extract_temperature_facts",
+    "extract_testid_facts",
     "fact_appears_in_log",
     "record_tool_call",
     "verify_dataflow",

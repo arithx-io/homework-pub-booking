@@ -183,7 +183,7 @@ def build_forward_handoff(session: Session, loop_result: HalfResult) -> Handoff:
         session_id=session.session_id,
         reason="loop-half requested confirmation",
         context=loop_result.summary,
-        data=loop_result.handoff_payload or loop_result.output,
+        data=(loop_result.handoff_payload or {}).get("data") or loop_result.output,
         return_instructions=(
             "If you cannot confirm (party too large, deposit too high, etc.), "
             "respond with next_action=escalate and include a human-readable "

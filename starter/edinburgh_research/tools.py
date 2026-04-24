@@ -208,7 +208,18 @@ def calculate_cost(
 # ---------------------------------------------------------------------------
 # 4 — generate_flyer
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 4 — generate_flyer (HTML output)
+# ---------------------------------------------------------------------------
 def generate_flyer(session: Session, event_details: dict) -> ToolResult:
+    """Write a self-contained HTML flyer to workspace/flyer.html.
+
+    HTML (not markdown) so students can open it in a browser and see
+    the actual poster their agent produced. The file is self-contained
+    (inline CSS) — no external assets. Semantic tags (<article>,
+    <section>, <dl>) help screen readers and the integrity check's
+    DOM parser.
+    """
     required = (
         "venue_name",
         "date",
@@ -227,51 +238,99 @@ def generate_flyer(session: Session, event_details: dict) -> ToolResult:
             error_code="SA_TOOL_INVALID_INPUT",
         )
 
-    lines = [
-        f"# {event_details['venue_name']} — Private Event",
-        "",
-        f"**Date:** {event_details['date']}  ",
-        f"**Time:** {event_details['time']}  ",
-        f"**Party size:** {event_details['party_size']}  ",
-    ]
-    if event_details.get("venue_address"):
-        lines.append(f"**Address:** {event_details['venue_address']}  ")
+    # Simple HTML escape for user-controlled text — prevents template
+    # injection even though everything here comes from our tool outputs.
+    from html import escape
 
-    lines.extend(
-        [
-            "",
-            "## Weather forecast",
-            f"{event_details['condition'].capitalize()}, {event_details['temperature_c']}°C",
-            "",
-            "## Cost",
-            f"Total: £{event_details['total_gbp']}",
-        ]
+    venue_name = escape(str(event_details["venue_name"]))
+    date = escape(str(event_details["date"]))
+    time_str = escape(str(event_details["time"]))
+    party_size = int(event_details["party_size"])
+    condition = escape(str(event_details["condition"]).capitalize())
+    temp_c = int(event_details["temperature_c"])
+    total_gbp = int(event_details["total_gbp"])
+    deposit = int(event_details.get("deposit_required_gbp", 0))
+    address = escape(str(event_details.get("venue_address", "")))
+
+    deposit_html = (
+        f'<dt>Deposit</dt><dd data-testid="deposit">£{deposit}</dd>'
+        if deposit
+        else '<dt>Deposit</dt><dd data-testid="deposit">No deposit required</dd>'
     )
-    deposit = event_details.get("deposit_required_gbp", 0)
-    if deposit:
-        lines.append(f"Deposit required: £{deposit}")
-    else:
-        lines.append("No deposit required for this booking.")
+    address_html = f'<p class="address" data-testid="address">{address}</p>' if address else ""
 
-    flyer_md = "\n".join(lines) + "\n"
+    flyer_html = f"""<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{venue_name} — Private Event</title>
+<style>
+  body {{
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    max-width: 640px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+    line-height: 1.5;
+    color: #222;
+  }}
+  article {{
+    border: 2px solid #444;
+    border-radius: 8px;
+    padding: 1.5rem 2rem;
+    background: #fffef7;
+  }}
+  h1 {{ margin-top: 0; font-size: 2rem; }}
+  h2 {{ font-size: 1.15rem; margin-top: 1.5rem; color: #555; }}
+  .address {{ font-style: italic; color: #666; margin-top: -0.5rem; }}
+  dl {{ display: grid; grid-template-columns: max-content 1fr; gap: 0.3rem 1rem; }}
+  dt {{ font-weight: 600; color: #555; }}
+  dd {{ margin: 0; }}
+  .total {{ font-size: 1.25rem; font-weight: 700; color: #2a5934; }}
+</style>
+</head>
+<body>
+<article>
+  <h1 data-testid="venue-name">{venue_name}</h1>
+  <p class="subtitle">Private Event</p>
+  {address_html}
 
-    flyer_path = session.workspace_dir / "flyer.md"
+  <h2>When</h2>
+  <dl>
+    <dt>Date</dt><dd data-testid="date">{date}</dd>
+    <dt>Time</dt><dd data-testid="time">{time_str}</dd>
+    <dt>Party size</dt><dd data-testid="party-size">{party_size}</dd>
+  </dl>
+
+  <h2>Weather forecast</h2>
+  <p><span data-testid="condition">{condition}</span>,
+     <span data-testid="temperature">{temp_c}°C</span></p>
+
+  <h2>Cost</h2>
+  <dl>
+    <dt>Total</dt><dd class="total" data-testid="total">£{total_gbp}</dd>
+    {deposit_html}
+  </dl>
+</article>
+</body>
+</html>
+"""
+
+    flyer_path = session.workspace_dir / "flyer.html"
     flyer_path.parent.mkdir(parents=True, exist_ok=True)
-    flyer_path.write_text(flyer_md, encoding="utf-8")
+    flyer_path.write_text(flyer_html, encoding="utf-8")
 
     output = {
-        "path": "workspace/flyer.md",
+        "path": "workspace/flyer.html",
         "bytes_written": flyer_path.stat().st_size,
-        # Record the facts we wrote into the flyer — integrity check reads this.
         "venue_name": event_details["venue_name"],
-        "total_gbp": event_details["total_gbp"],
+        "total_gbp": total_gbp,
         "deposit_required_gbp": deposit,
     }
     record_tool_call("generate_flyer", {"event_details": event_details}, output)
     return ToolResult(
         success=True,
         output=output,
-        summary=f"generate_flyer: wrote workspace/flyer.md ({flyer_path.stat().st_size} bytes)",
+        summary=f"generate_flyer: wrote workspace/flyer.html ({flyer_path.stat().st_size} bytes)",
     )
 
 
@@ -363,7 +422,7 @@ def build_tool_registry(session: Session) -> ToolRegistry:
     reg.register(
         _RegisteredTool(
             name="generate_flyer",
-            description="Write a markdown flyer for the event to workspace/flyer.md.",
+            description="Write an HTML flyer for the event to workspace/flyer.html.",
             fn=_flyer_adapter,
             parameters_schema={
                 "type": "object",

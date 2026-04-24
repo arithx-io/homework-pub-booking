@@ -72,6 +72,8 @@ def _build_fake_client_two_rounds() -> FakeLLMClient:
                         id="c2",
                         name="handoff_to_structured",
                         arguments={
+                            "reason": "loop half identified a candidate venue; passing to structured half for confirmation under policy rules",
+                            "context": "party of 12 near Haymarket on 2026-04-25 19:30; chosen venue haymarket_tap",
                             "data": {
                                 "action": "confirm_booking",
                                 "venue_id": "Haymarket Tap",
@@ -79,36 +81,38 @@ def _build_fake_client_two_rounds() -> FakeLLMClient:
                                 "time": "19:30",
                                 "party_size": "12",
                                 "deposit": "£0",
-                            }
+                            },
                         },
                     )
                 ]
             ),
-            # === ROUND 2 (after reverse handoff) ===
+            # === ROUND 2 (after reverse handoff from structured rejecting party=12) ===
             ScriptedResponse(content=plan_r2),  # planner turn 2
-            ScriptedResponse(  # executor turn 1: search with bigger area
+            ScriptedResponse(  # executor turn 1: new search with smaller party
                 tool_calls=[
                     ToolCall(
                         id="c3",
                         name="venue_search",
-                        arguments={"near": "Old Town", "party_size": 12, "budget_max_gbp": 2000},
+                        arguments={"near": "Old Town", "party_size": 6, "budget_max_gbp": 2000},
                     )
                 ]
             ),
-            ScriptedResponse(  # executor turn 2: handoff royal_oak
+            ScriptedResponse(  # executor turn 2: handoff royal_oak with party=6
                 tool_calls=[
                     ToolCall(
                         id="c4",
                         name="handoff_to_structured",
                         arguments={
+                            "reason": "retry after reverse handoff — scaled down to fit policy",
+                            "context": "party was originally 12; rejected; re-proposing party of 6 at royal_oak (16 seats)",
                             "data": {
                                 "action": "confirm_booking",
                                 "venue_id": "The Royal Oak",
                                 "date": "2026-04-25",
                                 "time": "19:30",
-                                "party_size": "12",
+                                "party_size": "6",
                                 "deposit": "£0",
-                            }
+                            },
                         },
                     )
                 ]

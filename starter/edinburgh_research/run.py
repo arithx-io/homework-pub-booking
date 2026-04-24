@@ -35,8 +35,7 @@ from starter.edinburgh_research.tools import build_tool_registry
 
 
 def _build_fake_client() -> FakeLLMClient:
-    """Scripts a 2-subgoal trajectory for offline mode. Keep one call
-    per tool so the integrity check has data to verify."""
+    """Scripts a 2-subgoal trajectory for offline mode."""
     plan_json = json.dumps(
         [
             {
@@ -49,8 +48,8 @@ def _build_fake_client() -> FakeLLMClient:
             },
             {
                 "id": "sg_2",
-                "description": "produce a flyer with the chosen venue, weather, and cost",
-                "success_criterion": "flyer.md written to workspace/",
+                "description": "produce an HTML flyer with the chosen venue, weather, and cost",
+                "success_criterion": "flyer.html written to workspace/",
                 "estimated_tool_calls": 1,
                 "depends_on": ["sg_1"],
                 "assigned_half": "loop",
@@ -63,7 +62,9 @@ def _build_fake_client() -> FakeLLMClient:
         arguments={"near": "Haymarket", "party_size": 6, "budget_max_gbp": 800},
     )
     weather_call = ToolCall(
-        id="c2", name="get_weather", arguments={"city": "edinburgh", "date": "2026-04-25"}
+        id="c2",
+        name="get_weather",
+        arguments={"city": "edinburgh", "date": "2026-04-25"},
     )
     cost_call = ToolCall(
         id="c3",
@@ -95,7 +96,7 @@ def _build_fake_client() -> FakeLLMClient:
     complete_call = ToolCall(
         id="c5",
         name="complete_task",
-        arguments={"result": {"flyer": "workspace/flyer.md", "venue": "haymarket_tap"}},
+        arguments={"result": {"flyer": "workspace/flyer.html", "venue": "haymarket_tap"}},
     )
 
     return FakeLLMClient(
@@ -105,7 +106,7 @@ def _build_fake_client() -> FakeLLMClient:
             ScriptedResponse(tool_calls=[flyer_call]),
             ScriptedResponse(tool_calls=[complete_call]),
             ScriptedResponse(content="Subgoal 1 complete."),
-            ScriptedResponse(content="Booking researched; flyer at workspace/flyer.md."),
+            ScriptedResponse(content="Booking researched; flyer at workspace/flyer.html."),
             ScriptedResponse(content="Task complete."),
         ]
     )
@@ -131,7 +132,7 @@ def _tools_are_implemented() -> tuple[bool, str]:
         except NotImplementedError:
             unimplemented.append(name)
         except Exception:
-            pass  # any other exception = student has done SOME work
+            pass  # any other exception = some work done
 
     import inspect
 
@@ -195,9 +196,24 @@ async def run_scenario(real: bool) -> int:
         session = create_session(
             scenario="edinburgh-research",
             task=(
-                "Find an Edinburgh pub near Haymarket for a party of 6 on "
-                "2026-04-25 at 19:30. Check the weather, work out the catering "
-                "cost, and write a flyer to workspace/flyer.md."
+                "Research an Edinburgh pub and produce an HTML event flyer.\n\n"
+                "Context:\n"
+                "  - party size: 6\n"
+                "  - date: 2026-04-25 (a Saturday)\n"
+                "  - time: 19:30\n"
+                "  - area: near Haymarket station, Edinburgh\n\n"
+                "REQUIRED tool sequence (all four tools MUST run, in order):\n"
+                "  1. venue_search(near='Haymarket', party_size=6, budget_max_gbp=800)\n"
+                "  2. get_weather(city='edinburgh', date='2026-04-25')\n"
+                "  3. calculate_cost(venue_id=<chosen pub's id>, party_size=6,\n"
+                "                    duration_hours=3, catering_tier='bar_snacks')\n"
+                "  4. generate_flyer(event_details={...})  <-- MUST be called\n"
+                "  5. complete_task(result={'flyer': 'workspace/flyer.html', ...})\n\n"
+                "Do NOT call complete_task until you have called generate_flyer. "
+                "The scenario is graded by the existence of workspace/flyer.html, "
+                "not by your final text response. The flyer is HTML — exact tool "
+                "names and argument shapes are in each tool's docstring; call them "
+                "exactly as described."
             ),
             sessions_dir=sessions_root,
         )
@@ -237,12 +253,28 @@ async def run_scenario(real: bool) -> int:
             r = t.read_result()
             print(f"  {t.ticket_id}  {t.operation:50s}  {r.state.value}")
 
-        flyer_path = session.workspace_dir / "flyer.md"
+        flyer_path = session.workspace_dir / "flyer.html"
         if not flyer_path.exists():
             print("\n✗ No flyer written to workspace/. Ex5 failed.")
+            from starter.edinburgh_research.integrity import _TOOL_CALL_LOG
+
+            if _TOOL_CALL_LOG:
+                print(f"\n  Tools that DID run ({len(_TOOL_CALL_LOG)} calls):")
+                for i, rec in enumerate(_TOOL_CALL_LOG, 1):
+                    args_preview = str(rec.arguments)[:80]
+                    print(f"    {i}. {rec.tool_name}({args_preview})")
+                if not any(r.tool_name == "generate_flyer" for r in _TOOL_CALL_LOG):
+                    print(
+                        "\n  ★ generate_flyer was never called. The LLM either completed "
+                        "the task without writing the flyer, or called complete_task "
+                        "too early. Check sessions/<id>/logs/trace.jsonl."
+                    )
+            else:
+                print("\n  No tools ran at all — the LLM didn't invoke any registered tool.")
+                print(f"  Check the trace: {session.trace_path}")
             return 1
 
-        print(f"\n=== flyer.md ({flyer_path.stat().st_size} bytes) ===")
+        print(f"\n=== flyer.html ({flyer_path.stat().st_size} bytes) ===")
         flyer_content = flyer_path.read_text(encoding="utf-8")
         print(flyer_content[:500] + ("...\n[truncated]" if len(flyer_content) > 500 else ""))
 
@@ -260,6 +292,7 @@ async def run_scenario(real: bool) -> int:
         if real:
             print(f"\nArtifacts persist at: {session.directory}")
             print(f'Inspect with: ls -R "{session.directory}"')
+            print(f"📜 Narrate this run: make narrate SESSION={session.session_id}")
 
         return 0
 

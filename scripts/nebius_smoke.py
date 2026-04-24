@@ -53,7 +53,7 @@ async def probe() -> int:
         "https://api.tokenfactory.nebius.com/v1/",
     )
     # Cheapest small model on Nebius — used only for the probe.
-    model = "google/gemma-3-27b-it-fast"
+    model = "google/gemma-2-2b-it"
 
     try:
         from openai import AsyncOpenAI

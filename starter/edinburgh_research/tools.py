@@ -134,6 +134,36 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
 
     args = {"near": near, "party_size": party_size, "budget_max_gbp": budget_max_gbp}
 
+    # Input validation. Mirror the calculate_cost guards so a malformed
+    # call doesn't return an unhelpful 0-result success.
+    if not isinstance(party_size, int) or party_size < 1:
+        err = ToolError(
+            code="SA_TOOL_INVALID_INPUT",
+            message=f"party_size must be a positive integer, got {party_size!r}",
+        )
+        output = {"near": near, "error": str(err)}
+        record_tool_call("venue_search", args, output)
+        return ToolResult(
+            success=False,
+            output=output,
+            summary=f"venue_search: invalid party_size {party_size!r}",
+            error=err,
+        )
+
+    if not isinstance(budget_max_gbp, int) or budget_max_gbp < 0:
+        err = ToolError(
+            code="SA_TOOL_INVALID_INPUT",
+            message=f"budget_max_gbp must be a non-negative integer, got {budget_max_gbp!r}",
+        )
+        output = {"near": near, "error": str(err)}
+        record_tool_call("venue_search", args, output)
+        return ToolResult(
+            success=False,
+            output=output,
+            summary=f"venue_search: invalid budget_max_gbp {budget_max_gbp!r}",
+            error=err,
+        )
+
     spiral = _spiral_check("venue_search", args)
     if spiral is not None:
         record_tool_call("venue_search", args, spiral.output)

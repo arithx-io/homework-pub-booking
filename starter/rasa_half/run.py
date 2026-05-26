@@ -97,6 +97,39 @@ async def run_scenario(real: bool, auto: bool) -> int:
         print(f"  summary: {result.summary}")
         print(f"  output:  {result.output}")
 
+        if result.success:
+            # Transition planning -> handed_off_to_structured -> completed
+            # (matches the Session ALLOWED_TRANSITIONS state machine).
+            session.update_state(state="handed_off_to_structured")
+            session.append_trace_event(
+                {
+                    "event_type": "session.state_changed",
+                    "actor": "ex6-runner",
+                    "payload": {
+                        "from": "structured",
+                        "to": "complete",
+                        "via": "rasa",
+                        "summary": result.summary,
+                    },
+                }
+            )
+            session.mark_complete(result.output or {})
+        else:
+            session.update_state(state="handed_off_to_structured")
+            session.append_trace_event(
+                {
+                    "event_type": "session.state_changed",
+                    "actor": "ex6-runner",
+                    "payload": {
+                        "from": "structured",
+                        "to": "failed",
+                        "via": "rasa",
+                        "summary": result.summary,
+                    },
+                }
+            )
+            session.mark_failed(result.summary)
+
         if real:
             print(f"\n📂 Session artifacts: {session.directory}")
             print(f"📜 Narrate this run:   make narrate SESSION={session.session_id}")

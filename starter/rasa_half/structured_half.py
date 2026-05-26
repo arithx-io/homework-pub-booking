@@ -109,6 +109,19 @@ class RasaStructuredHalf(StructuredHalf):
             )
 
         booking = rasa_msg["metadata"]["booking"]
+        session.append_trace_event(
+            {
+                "event_type": "structured.request",
+                "actor": "rasa",
+                "payload": {
+                    "rasa_url": self.rasa_url,
+                    "sender": rasa_msg["sender"],
+                    "message": rasa_msg["message"],
+                    "booking": booking,
+                },
+            }
+        )
+
         # Build the JSON request body. Rasa's REST webhook expects a single
         # JSON object with `sender` (conversation id), `message` (the user
         # utterance — here a programmatic /confirm_booking command) and
@@ -167,6 +180,17 @@ class RasaStructuredHalf(StructuredHalf):
         try:
             messages = json.loads(raw_response)
         except json.JSONDecodeError:
+            session.append_trace_event(
+                {
+                    "event_type": "structured.response",
+                    "actor": "rasa",
+                    "payload": {
+                        "success": False,
+                        "error": "non_json_response",
+                        "raw": raw_response[:200].decode("utf-8", errors="replace"),
+                    },
+                }
+            )
             return HalfResult(
                 success=False,
                 output={
@@ -176,6 +200,14 @@ class RasaStructuredHalf(StructuredHalf):
                 summary="rasa response not JSON",
                 next_action="escalate",
             )
+
+        session.append_trace_event(
+            {
+                "event_type": "structured.response",
+                "actor": "rasa",
+                "payload": {"success": True, "messages": messages, "booking": booking},
+            }
+        )
 
         # Parse Rasa's response. The REST webhook returns a JSON array of
         # message objects. ActionValidateBooking + our confirm_booking flow

@@ -32,7 +32,7 @@ for both tiers.
 **Tier 2 (live Rasa).** Ran `make ex6-real` against a live Rasa Pro
 3.x server (`rasa-actions` on :5055, `rasa-serve` on :5005, trained
 model `20260526-032549-tense-driver.tar.gz`). Captured as
-`sess_52330bc5de0e`. Live Rasa's `CompactLLMCommandGenerator` parsed
+`sess_61fe0b2dc669`. Live Rasa's `CompactLLMCommandGenerator` parsed
 the `/confirm_booking` programmatic command, the flow ran
 `ActionValidateBooking`, and `utter_booking_confirmed` returned
 `BK-7D401E9E` as plain text. There's no `custom.action` field on live
@@ -54,5 +54,11 @@ same Python contract works in both tiers without forking the parser.
   checks plus reference generation.
 - `rasa_project/data/flows.yml`: `confirm_booking`,
   `resume_from_loop`, and `request_research` flow entry points.
-- `sessions/examples/ex6-rasa-half/sess_52330bc5de0e/session.json`:
-  live-Rasa run with `BK-7D401E9E`.
+- `sessions/examples/ex6-rasa-half/sess_61fe0b2dc669/session.json`:
+  live-Rasa run, state=`completed`, `BK-7D401E9E` in result.
+- `sessions/examples/ex6-rasa-half/sess_61fe0b2dc669/logs/trace.jsonl`:
+  three events captured during the live exchange: `structured.request`
+  (POST payload to Rasa), `structured.response` (parsed response
+  messages), `session.state_changed` (structured -> complete). Run
+  via `make ex6-real` with `rasa-actions` on :5055 and `rasa-serve`
+  on :5005.

@@ -46,7 +46,7 @@ next Saturday at 19:30"*), and emit reference `HM123`. Alasdair speaks
 in Scots dialect ("Aye", "gie ye the details") the way the system
 prompt asks for.
 
-The voice-mode counterpart is captured in `sess_bf6a1dafdb8c` (5 turns, all `mode: "voice"`). Real mic capture via `sounddevice` at 16kHz mono, Speechmatics realtime STT over websocket, manager reply via Llama-3.3-70B, ElevenLabs TTS playback through `pydub`. Authentic Speechmatics artifacts come through in the transcripts (`oh seven 9123456` for spoken digits, commas inserted between `Bar , snacks , please`), which the persona handles gracefully and drives the booking to a confirmed reference (`HM001`). The captured audio for each turn lives under `workspace/turn_N.wav` as the recording audit trail.
+The voice-mode counterpart is captured in `sess_bf6a1dafdb8c` (5 turns, all `mode: "voice"`). Real mic capture via `sounddevice` at 16kHz mono, Speechmatics realtime STT over websocket, manager reply via Llama-3.3-70B, ElevenLabs TTS playback through `pydub`. Authentic Speechmatics artifacts come through in the transcripts (`oh seven 9123456` for spoken digits, commas inserted between `Bar , snacks , please`), which the persona handles gracefully and drives the booking to a confirmed reference (`HM001`). The captured audio for each turn lives under `workspace/turn_N_input.wav` as the recording audit trail.
 
 ## Citations
 
@@ -59,6 +59,9 @@ The voice-mode counterpart is captured in `sess_bf6a1dafdb8c` (5 turns, all `mod
   `voice.utterance_in` + four `voice.utterance_out` events, all
   `mode: "text"`, Alasdair consistently in character.
 - `sessions/homework/ex8-voice-pipeline/sess_bf6a1dafdb8c/logs/trace.jsonl`:
-  four `voice.utterance_in` + four `voice.utterance_out` events, all
-  `mode: "voice"`, with real Speechmatics-derived transcripts and
-  per-turn TTS attempt outcomes.
+  five `voice.utterance_in` + five `voice.utterance_out` events, all
+  `mode: "voice"`, real Speechmatics transcripts with characteristic
+  STT artifacts.
+- `sessions/homework/ex8-voice-pipeline/sess_bf6a1dafdb8c/workspace/`:
+  five `turn_N_input.wav` recordings (16kHz mono PCM) from the live
+  mic capture.

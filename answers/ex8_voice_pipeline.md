@@ -46,6 +46,17 @@ next Saturday at 19:30"*), and emit reference `HM123`. Alasdair speaks
 in Scots dialect ("Aye", "gie ye the details") the way the system
 prompt asks for.
 
+The voice-mode counterpart is captured in `sess_928a3ebed75d` (4 turns,
+all `mode: "voice"`). Each user utterance was rendered to audio,
+transcribed by Speechmatics' batch STT, then routed through the same
+`ManagerPersona`. Real STT artifacts show through in the transcripts
+("730" for "seven thirty", "Â£200" with a currency encoding glitch),
+which the persona handles gracefully and still drives the booking to a
+confirmed reference (`HM001`). The ElevenLabs TTS step on this
+particular run logged HTTP 401 (free-tier abuse-detector flagging the
+egress IP), so the reply path degraded to print-only per the design
+above; the trace records the attempt outcome in `voice.tts_summary`.
+
 ## Citations
 
 - `starter/voice_pipeline/voice_loop.py`: `run_text_mode`,
@@ -56,3 +67,7 @@ prompt asks for.
 - `sessions/homework/ex8/sess_92851b66ea4b/logs/trace.jsonl`: four
   `voice.utterance_in` + four `voice.utterance_out` events, all
   `mode: "text"`, Alasdair consistently in character.
+- `sessions/homework/ex8-voice-pipeline/sess_928a3ebed75d/logs/trace.jsonl`:
+  four `voice.utterance_in` + four `voice.utterance_out` events, all
+  `mode: "voice"`, with real Speechmatics-derived transcripts and
+  per-turn TTS attempt outcomes.

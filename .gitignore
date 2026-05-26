@@ -5,10 +5,12 @@
 .env.*.local
 
 # ── Session artifacts ────────────────────────────────────────────────
-# Sessions contain API output and should not be committed.
-sessions/
-demo_sessions_*/
-*.session.json
+# Per cohort agreement: sessions/ IS committed at submission time so
+# the Ex9 LLM judge can cross-check claims against trace artifacts
+# (ASSIGNMENT.md §Reasoning). Rules below are commented out.
+# sessions/
+# demo_sessions_*/
+# *.session.json
 
 # ── Python standard ──────────────────────────────────────────────────
 __pycache__/

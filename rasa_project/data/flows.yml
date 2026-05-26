@@ -1,6 +1,8 @@
 flows:
   # ─────────────────────────────────────────────────────────────────
-  # confirm_booking — the ONE flow this homework uses.
+  # confirm_booking — the primary structured-half flow.
+# Two more flows below (resume_from_loop, request_research)
+# cover the bidirectional handoff paths per ASSIGNMENT.md §Ex6.
   #
   # Entry: programmatic. RasaStructuredHalf POSTs:
   #   {"sender": "...", "message": "/confirm_booking",

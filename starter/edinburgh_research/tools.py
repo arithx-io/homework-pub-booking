@@ -44,19 +44,41 @@ _SAMPLE_DATA = Path(__file__).parent / "sample_data"
 _SPIRAL_THRESHOLD = 3
 
 
+def _canonical_args(arguments: dict) -> str:
+    """Stable argument fingerprint for the spiral guard.
+
+    The guard must be scoped to *equivalent arguments*, not merely the
+    tool name. Otherwise a test or scenario that calls calculate_cost
+    four times with different inputs could poison the fifth call by
+    returning an unrelated cached result.
+    """
+    return json.dumps(arguments, sort_keys=True, separators=(",", ":"), default=str)
+
+
 def _spiral_check(tool_name: str, arguments: dict) -> ToolResult | None:
-    """If this tool has been called > _SPIRAL_THRESHOLD times already, return
-    the most recent prior result with a STOP hint in the summary. Otherwise
-    return None and let the caller proceed."""
-    prior = [r for r in _TOOL_CALL_LOG if r.tool_name == tool_name]
+    """Return a cached result only for repeated calls with identical args.
+
+    Prevents LLM real-mode spirals (the same tool with the same args
+    being called over and over) while keeping the tools safe for
+    ordinary test suites that exercise several distinct inputs in one
+    process.
+    """
+    fingerprint = _canonical_args(arguments)
+    prior = [
+        r
+        for r in _TOOL_CALL_LOG
+        if r.tool_name == tool_name and _canonical_args(r.arguments) == fingerprint
+    ]
     if len(prior) <= _SPIRAL_THRESHOLD:
         return None
     last = prior[-1]
     summary = (
-        f"{tool_name} already called {len(prior)} times — STOP calling this tool. "
-        f"Use the prior result. (returning cached output unchanged.)"
+        f"{tool_name} already called {len(prior)} times with the same arguments - "
+        f"STOP calling this tool. Use the prior result. "
+        f"(returning cached output unchanged.)"
     )
-    return ToolResult(success=True, output=dict(last.output), summary=summary)
+    # Preserve failure semantics for repeated invalid calls.
+    return ToolResult(success="error" not in last.output, output=dict(last.output), summary=summary)
 
 
 def _load_fixture(name: str) -> Any:

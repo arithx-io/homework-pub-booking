@@ -121,41 +121,57 @@ self-validate the flyer against the flyer-tool's own log entry
 
 ### Your answer
 
-**Failure mode**: loop spiral on venue research. In production I would
-expect the loop half to repeat `venue_search` with slightly varied
-arguments after a partial or disappointing result, especially under
-real-LLM execution. A model can make that look like progress — change
-the area, budget, or party size, call the same read tool again, then
-continue burning tokens without a user-visible crash. This is worse
-than a hard exception because it degrades cost and latency while still
-producing a superficially normal session. The cohort has documented
-this exact symptom in `docs/real-mode-failures.md`; Lucia reported it
-on May 19.
+**Failure mode**: ticket reports success while the actual goal was
+never produced. I captured this from a live `make ex5-real` run in
+session `sess_c0916c8406f0` (planner Qwen3-Next-80B, executor
+Qwen3-32B). The planner produced three subgoals all with
+`assigned_half: "loop"` (ticket `tk_e4f15cff`). The executor for
+sg_1 (ticket `tk_a2f19e9c`) then called `venue_search` four times
+with the wrong arguments — never the canonical `near="Haymarket",
+party_size=6`. Trace lines 3–6 show party_size values 10, 20, 15,
+20 against locations the executor invented (`"Old Town, Edinburgh"`,
+`"Princes Street, Edinburgh"`, `"Edinburgh City Centre"`). All four
+calls returned `0 result(s)`. The executor then gave up on the
+canonical `generate_flyer` tool and called `write_file` instead,
+writing hallucinated content — *"The Scotch Whisky Experience, The
+Edinburgh Dungeon, The Royal Botanic Garden..."* — which are real
+Edinburgh attractions but none appear in `sample_data/venues.json`.
+The file landed at `workspace/workspace/venues_list.txt` (path
+nesting bug from the relative-path resolver). No `generate_flyer`,
+no `complete_task`, no `workspace/flyer.html`.
 
-**Primitive**: the ticket state machine. The useful signal is not the
-model's explanation; it is the sequence of recorded operations. Every
-planner and executor operation leaves a ticket under
-`logs/tickets/tk_<id>/` with `manifest.json`, `raw_output.json`,
-`state.json`, `summary.md`. A healthy session has a small bounded
-number of research calls. A spiral session has an abnormal count of
-tickets whose tool argument matches `venue_search`. That count can be
-monitored deterministically with no LLM judge: alert when
-`venue_search_count > 5`, or when the same tool is called repeatedly
-with small argument perturbations. The committed Ex7 run gives a
-healthy contrast: `sess_1d066b03335a` has bounded round-trip behaviour,
-visible bridge state transitions, and only the expected
-research/handoff tickets (`tk_8f86c41e`, `tk_1503b962`). In a real
-pub-booking service, that is exactly the primitive I would build
-operational metrics around — tickets are durable, auditable evidence
-of what the agent actually did.
+**Primitive**: the ticket state machine. The killer fact is that
+`tk_a2f19e9c/state.json` reports `state: "success"` for the executor
+run. Its summary even reads: *"Executor completed subgoal sg_1 in 6
+turn(s). Made 5 tool call(s)."* A monitoring system that watches
+only ticket-level success would have flagged this run as healthy.
+But the same primitive surfaces the failure once you ask the right
+question of the same data: the ticket lists the tool calls made
+(`venue_search × 4, write_file × 1`), and a deterministic check —
+"did this run produce a `generate_flyer` ticket?" or "did
+`session.state` reach `complete`?" — flags the mismatch. The
+session ended with `state: "executing"` and `result: null`; the
+ticket reported success because, from the executor's local view,
+five tool calls returned `success: true`. Tickets are the primitive
+because they make the disagreement between *operation success* and
+*goal achievement* mechanically queryable.
 
 ### Citation
 
-- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/tickets/`
-  — bounded healthy ticket set for comparison (4 tickets across 2
-  rounds: 2 planner.plan + 2 executor.run_subgoal).
-- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/trace.jsonl`
-  — two bridge rounds, four state transitions, then completion.
+- `sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/logs/trace.jsonl`
+  — 4× wrong-arg `venue_search` (all 0 results), then `write_file`
+  with hallucinated content; no `generate_flyer`, no `complete_task`.
+- `sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/logs/tickets/tk_a2f19e9c/state.json`
+  — executor ticket reports `state: "success"` despite no flyer produced.
+- `sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/logs/tickets/tk_a2f19e9c/summary.md`
+  — *"Executor completed subgoal sg_1 in 6 turn(s). Made 5 tool call(s)."*
+- `sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/session.json`
+  — final state `"executing"`, result `null`.
+- `sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/workspace/workspace/venues_list.txt`
+  — hallucinated venues written to the wrong file at the wrong path.
+- Healthy contrast: `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/tickets/`
+  — bounded healthy ticket set (4 tickets across 2 rounds: 2 planner.plan +
+  2 executor.run_subgoal).
 - `starter/edinburgh_research/tools.py` — `_spiral_check` defensive
   in-tool guard (threshold > 3 returns cached result with explicit
   STOP hint).

@@ -1,0 +1,20 @@
+{
+  "ticket_id": "tk_a2f19e9c",
+  "operation": "executor.run_subgoal/sg_1",
+  "started_at": "2026-05-26T03:19:34.098720+00:00",
+  "completed_at": "2026-05-26T03:20:41.528232+00:00",
+  "duration_ms": 67429,
+  "outputs": [
+    {
+      "path": "/home/claude/hw/sessions/examples/ex5-edinburgh-research/sess_c0916c8406f0/logs/tickets/tk_a2f19e9c/raw_output.json",
+      "sha256": "f721df5062d6cdcfa1fdb8f5a633a278586ddb17cafe03c310246b3b3be84517",
+      "size_bytes": 4856,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "tool_calls": 5,
+    "turns_used": 6,
+    "handoff_requested": false
+  }
+}

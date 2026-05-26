@@ -76,6 +76,13 @@ def _build_fake_client() -> FakeLLMClient:
             "catering_tier": "bar_snacks",
         },
     )
+    # NOTE: total_gbp and deposit_required_gbp here MUST match what
+    # calculate_cost() returns for the inputs scripted in cost_call below.
+    # If you change the cost formula in tools.py, regenerate these via:
+    #   uv run python -c "from starter.edinburgh_research.tools import calculate_cost; \
+    #                     from starter.edinburgh_research.integrity import clear_log; \
+    #                     clear_log(); r = calculate_cost('haymarket_tap', 6, 3, 'bar_snacks'); \
+    #                     print(r.output)"
     flyer_call = ToolCall(
         id="c4",
         name="generate_flyer",
@@ -88,8 +95,8 @@ def _build_fake_client() -> FakeLLMClient:
                 "party_size": 6,
                 "condition": "cloudy",
                 "temperature_c": 12,
-                "total_gbp": 540,
-                "deposit_required_gbp": 0,
+                "total_gbp": 356,
+                "deposit_required_gbp": 71,
             }
         },
     )

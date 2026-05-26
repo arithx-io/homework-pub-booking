@@ -37,6 +37,22 @@ RASA_REST_WEBHOOK_DEFAULT = "http://localhost:5005/webhooks/rest/webhook"
 _SOLUTION_EX6 = Path(__file__).resolve().parent
 
 
+def _extract_reference_from_text(text: str) -> str | None:
+    """Extract a 'BK-XXXXXXXX' style reference from a free-text reply."""
+    import re
+
+    m = re.search(r"\b(BK-[A-Z0-9]{6,})\b", text or "")
+    return m.group(1) if m else None
+
+
+def _extract_reason_from_text(text: str) -> str | None:
+    """Extract a 'Reason: party_too_large' style reason from free-text."""
+    import re
+
+    m = re.search(r"[Rr]eason\s*[:=]\s*([a-z_]+)", text or "")
+    return m.group(1) if m else None
+
+
 class RasaStructuredHalf(StructuredHalf):
     """Routes booking data through Rasa CALM flows via HTTP."""
 
@@ -93,17 +109,31 @@ class RasaStructuredHalf(StructuredHalf):
             )
 
         booking = rasa_msg["metadata"]["booking"]
-        # TODO: Construct the request body using `rasa_msg`. It needs to be a JSON string encoded as utf-8.
-        # Ensure you include 'sender', 'message', and 'metadata' containing 'booking'.
+        # Build the JSON request body. Rasa's REST webhook expects a single
+        # JSON object with `sender` (conversation id), `message` (the user
+        # utterance — here a programmatic /confirm_booking command) and
+        # optional `metadata` we pack the structured booking into.
+        body_bytes = json.dumps(
+            {
+                "sender": rasa_msg["sender"],
+                "message": rasa_msg["message"],
+                "metadata": rasa_msg["metadata"],
+            }
+        ).encode("utf-8")
 
-        # TODO: Create a urllib_request.Request object pointing to `self.rasa_url`, with the encoded body.
-        # Make sure to set the Content-Type header to application/json and method to POST.
+        req = urllib_request.Request(
+            self.rasa_url,
+            data=body_bytes,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
 
-        # We execute the blocking urllib call in a thread pool for async compatibility
+        loop = asyncio.get_running_loop()
         try:
-            # TODO: Execute the request using `urllib_request.urlopen` in a lambda passed to run_in_executor.
-            # Use `self.request_timeout_s` as the timeout.
-            raise NotImplementedError("TODO: Implement HTTP POST to Rasa")
+            raw_response = await loop.run_in_executor(
+                None,
+                lambda: urllib_request.urlopen(req, timeout=self.request_timeout_s).read(),
+            )
         except HTTPError as e:
             return HalfResult(
                 success=False,
@@ -147,17 +177,75 @@ class RasaStructuredHalf(StructuredHalf):
                 next_action="escalate",
             )
 
-        # TODO: Parse the Rasa response array (`messages`).
-        # Loop through `messages`. Look for a 'custom' dict containing 'action' == 'committed' or 'rejected'.
-        # Set `confirmed`, `rejected`, `rejection_reason` and `booking_reference` accordingly.
-        # Note: If action is 'committed', extract 'booking_reference' from 'custom' or text.
-        # If action is 'rejected', extract 'rejection_reason' from 'text'.
-        
-        # TODO: Return the appropriate HalfResult.
-        # - If confirmed and not rejected: success=True, next_action="complete", include booking reference in output.
-        # - If rejected: success=False, next_action="escalate", include reason in output.
-        # - If neither: success=False, next_action="escalate", note unexpected output.
-        raise NotImplementedError("TODO: Parse Rasa response and return HalfResult")
+        # Parse Rasa's response. The REST webhook returns a JSON array of
+        # message objects. ActionValidateBooking + our confirm_booking flow
+        # attach a custom dict with action="committed" or "rejected".
+        confirmed = False
+        rejected = False
+        rejection_reason: str | None = None
+        booking_reference: str | None = None
+        reply_text: str | None = None
+
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            text = msg.get("text")
+            if isinstance(text, str) and reply_text is None:
+                reply_text = text
+            custom = msg.get("custom")
+            if not isinstance(custom, dict):
+                continue
+            action = custom.get("action")
+            if action == "committed":
+                confirmed = True
+                booking_reference = custom.get("booking_reference") or _extract_reference_from_text(
+                    text or ""
+                )
+            elif action == "rejected":
+                rejected = True
+                rejection_reason = (
+                    custom.get("reason") or _extract_reason_from_text(text or "") or "unspecified"
+                )
+
+        if confirmed and not rejected:
+            return HalfResult(
+                success=True,
+                output={
+                    "booking": booking,
+                    "booking_reference": booking_reference,
+                    "reply_text": reply_text,
+                },
+                summary=(
+                    f"booking confirmed (ref={booking_reference})"
+                    if booking_reference
+                    else "booking confirmed"
+                ),
+                next_action="complete",
+            )
+
+        if rejected:
+            return HalfResult(
+                success=False,
+                output={
+                    "booking": booking,
+                    "rejected": True,
+                    "rejection_reason": rejection_reason,
+                    "reply_text": reply_text,
+                },
+                summary=f"booking rejected: {rejection_reason}",
+                next_action="escalate",
+            )
+
+        return HalfResult(
+            success=False,
+            output={
+                "booking": booking,
+                "error": "rasa returned no actionable custom payload",
+                "messages": messages,
+            },
+            summary="rasa response had no committed/rejected action",
+            next_action="escalate",
+        )
 
 
 # ─────────────────────────────────────────────────────────────────────

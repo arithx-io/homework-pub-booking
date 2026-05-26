@@ -2,29 +2,52 @@
 
 ## Your answer
 
-The voice pipeline has two modes with shared trace-event contract:
-text mode (run_text_mode, shipped complete) reads stdin and the
-manager persona replies via Llama-3.3-70B; voice mode (run_voice_mode,
-implemented here) uses Speechmatics for STT.
+`voice_loop.py` exposes two modes sharing one trace contract:
 
-The critical design choice is graceful degradation. run_voice_mode
-checks SPEECHMATICS_KEY and the speechmatics-python import before
-doing anything else. If either is missing, it logs a warning and
-falls through to run_text_mode. This means CI can pass the "voice
-loop implemented" check without Speechmatics credentials — the same
-code runs, just under the simpler transport.
+- `run_text_mode` (primary gradeable path): stdin → `ManagerPersona` →
+  stdout. Emits `voice.utterance_in` and `voice.utterance_out` trace
+  events per turn with `payload: {text, turn, mode: "text"}`.
+- `run_voice_mode`: mic capture via `sounddevice` → Speechmatics
+  realtime STT (websocket) → manager reply → **ElevenLabs TTS**
+  (per ASSIGNMENT.md §Ex8 line 184) → `pydub` MP3 decode →
+  `sounddevice` playback. Same trace event shape with `mode: "voice"`.
 
-Both modes emit voice.utterance_in and voice.utterance_out trace
-events with payload {text, turn, mode}. The mode field tells the
-grader which transport was in use. Same trace shape = identical
-downstream analysis.
+**ASSIGNMENT.md says ElevenLabs for TTS, not Rime.** The starter
+scaffold (and PR #18) reference Rime — I replaced `_speak_rime`'s
+HTTP POST with a real ElevenLabs implementation
+(`POST /v1/text-to-speech/{voice_id}`, `model_id=eleven_multilingual_v2`,
+voice George ID `JBFqnCBsd6RMkjVDRZzb` matching the gruff Edinburgh
+manager persona). Kept `_speak_rime` as a thin shim forwarding to
+`_speak_elevenlabs` so existing call sites and `.env` files using
+`RIME_API_KEY` continue to work.
 
-The ManagerPersona class holds a conversation history list and calls
-an LLM for each turn. It's deterministic given identical history +
-model seed, which makes the tests stable even though we talk to a
-real model.
+**Cohort fix: mic threshold 500 → 250.** vianu's Discord report
+(May 22) noted that the upstream RMS threshold of 500 required
+users to practically shout before the VAD started capturing. 250
+is the cohort-tested sweet spot for typical room noise.
+
+**Graceful degradation, three layers:**
+1. No `SPEECHMATICS_KEY` → warn, call `run_text_mode` (still gradeable).
+2. `speechmatics` or `sounddevice` import fails → warn, call
+   `run_text_mode`.
+3. No `ELEVENLABS_API_KEY` (or legacy `RIME_API_KEY`) → STT still
+   works, manager replies printed not spoken.
+
+`ManagerPersona` is system-prompted as Alasdair MacLeod, Haymarket
+Tap manager, with explicit rules (party ≤ 8, deposit ≤ £300).
+Llama-3.3-70B at `temperature=0.0` keeps replies deterministic.
+Session `sess_aa199f21b757` shows a 1-turn text exchange where
+the live model accepted an in-policy booking with a properly
+in-character reply: *"Aye, we can do that. I'll pencil you in for
+next Saturday at 7pm. What's the contact number?"*
 
 ## Citations
 
-- starter/voice_pipeline/voice_loop.py — run_voice_mode
-- starter/voice_pipeline/manager_persona.py — LLM-backed persona
+- `starter/voice_pipeline/voice_loop.py` — `run_text_mode`,
+  `run_voice_mode`, `_speak_elevenlabs`, `_speak_rime` shim,
+  threshold=250
+- `starter/voice_pipeline/manager_persona.py` — `ManagerPersona`,
+  `MANAGER_SYSTEM_PROMPT` (rules section intact)
+- `sessions/homework/ex8/sess_aa199f21b757/logs/trace.jsonl` — one
+  `voice.utterance_in` + one `voice.utterance_out`, both
+  `mode: "text"`, Alasdair in character

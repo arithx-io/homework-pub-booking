@@ -2,25 +2,47 @@
 
 ## Your answer
 
-The planner produced two subgoals: sg_1 (research venues near Haymarket
-for a party of 6, assigned to loop) and sg_2 (produce a flyer with the
-chosen venue, weather, and cost, also loop). Both ran in the same
-executor session.
+In my Ex5 session `sess_c2a81580a810`, the planner produced two subgoals
+both with `assigned_half: "loop"`:
+- `sg_1`: "research Edinburgh venues near Haymarket for a party of 6"
+- `sg_2`: "produce an HTML flyer with the chosen venue, weather, and cost"
 
-Turn 1 called venue_search, get_weather, and calculate_cost in parallel
-— all three are parallel_safe because they only read fixtures. Turn 2
-wrote the flyer via generate_flyer (parallel_safe=False because it
-writes a file). Turn 3 called complete_task.
+The executor handled `sg_1` in one turn by issuing three tool calls
+in parallel — `venue_search`, `get_weather`, `calculate_cost` — all
+registered with `parallel_safe=True` because they only read fixtures
+under `sample_data/`. It then completed `sg_2` with `generate_flyer`
+(`parallel_safe=False` — it writes `workspace/flyer.html`) and finally
+`complete_task`. Ticket-level proof: `tk_147fdc91` (planner.plan),
+`tk_7ce82acc` (executor.run_subgoal/sg_1), `tk_56b579c8`
+(executor.run_subgoal/sg_2), all `success`.
 
-The dataflow integrity check caught one issue during development: the
-template for "no deposit required" originally read "total under £300
-threshold", which put £300 in the flyer prose. That value was never
-returned by any tool — it's a rule threshold, not data. I simplified
-the phrasing to "No deposit required for this booking." Without the
-integrity check this would have slipped past review because £300 looks
-like a reasonable number in the right context.
+Two cohort-relevant fixes I applied:
+
+1. **`calculate_cost` formula correction (Marat / Dmitry K).** The
+   docstring's literal `subtotal + service + (hire_fee + min_spend)`
+   double-charges parties whose subtotal already exceeds the venue's
+   minimum spend. I changed it to `max(subtotal, min_spend) + service
+   + hire_fee` — `min_spend` is a *floor*, not an additive surcharge.
+   The corrected formula returns `total_gbp=356, deposit_required_gbp=71`
+   for the canonical haymarket_tap × party=6 × 3h × bar_snacks call.
+
+2. **Non-circular `generate_flyer` logging.** `generate_flyer` records
+   to `_TOOL_CALL_LOG` (the docstring requires it), but only with
+   `{"path": "workspace/flyer.html", "bytes_written": N}` and a digest
+   of arg *keys* — never the rendered fact values. Without this,
+   `verify_dataflow` could "verify" a fact by finding it in
+   `generate_flyer`'s own argument log (circular self-validation
+   bug Gareth flagged in the Discord). My `verify_dataflow` ran clean:
+   `dataflow OK: verified 4 fact(s) against tool outputs`.
 
 ## Citations
 
-- sessions/sess_*/logs/trace.jsonl — tool call sequence
-- sessions/sess_*/workspace/flyer.md — the produced flyer
+- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/workspace/flyer.html`
+- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/logs/trace.jsonl`
+  — 3 executor.tool_called events, then 1 generate_flyer, then complete_task
+- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/logs/tickets/`
+  — three tickets all `success`
+- `starter/edinburgh_research/tools.py` — `_spiral_check` defensive guard,
+  `calculate_cost` cohort fix, sanitised `generate_flyer` log args
+- `starter/edinburgh_research/integrity.py` — `verify_dataflow`,
+  `fact_appears_in_log`

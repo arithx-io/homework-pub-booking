@@ -8,7 +8,7 @@
 ### Your answer
 
 Strictly, my Ex7 logs do **not** show the planner assigning work directly
-to the structured half. In `sess_057c0d8139e6`, the planner emits one
+to the structured half. In `sess_1d066b03335a`, the planner emits one
 loop subgoal per round; the actual handoff is an executor-level action
 inside that loop. The relevant point is round 1 of `logs/trace.jsonl`:
 the executor first calls `venue_search` with `near="Haymarket"`,
@@ -36,17 +36,17 @@ transitions are not optional; they are the safety boundary.
 
 ### Citation
 
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/trace.jsonl`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/trace.jsonl`
   — round 1 `venue_search` (0 result(s)), `handoff_to_structured`,
   `session.state_changed` events (rejection reason `party_too_large`).
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/tk_17971d20/`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/tickets/tk_8f86c41e/`
   — round 1 executor ticket; raw_output.json records the
   zero-result `venue_search` AND the subsequent `handoff_to_structured`
   call inside the same subgoal.
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/handoffs/round_1_forward.json`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/handoffs/round_1_forward.json`
   — the archived round-1 handoff payload (Haymarket Tap, party=12)
   preserved after the structured half rejected.
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/ipc/handoff_to_structured.json`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/ipc/handoff_to_structured.json`
   — final live handoff payload (Royal Oak, party=6) from round 2.
 
 ---
@@ -55,7 +55,7 @@ transitions are not optional; they are the safety boundary.
 
 ### Your answer
 
-The committed Ex5 session `sess_df01eee6ce9e` is the clean run after
+The committed Ex5 session `sess_eff9faaddd54` is the clean run after
 fixing the dataflow problem. It shows why the integrity check matters.
 The trace records three factual producer calls before flyer generation:
 `get_weather` returns `cloudy` and `12C`; `calculate_cost(haymarket_tap,
@@ -73,7 +73,7 @@ Manual inspection might miss it because all three are syntactically
 plausible money amounts in a pub-booking flyer. The integrity check
 does not rely on plausibility: it extracts money, temperature, and
 weather-condition facts from the rendered flyer, then checks whether
-each scalar appears in the tool-call log. In the committed trace,
+each scalar appears in the output of a producer tool call. In the committed trace,
 `calculate_cost` produced `356` and `71`, not `9999` and not `540`,
 so the planted amount would be reported as an unverified fact. That
 is the core value of the exercise — the validator compares the final
@@ -89,15 +89,17 @@ self-validate the flyer against the flyer-tool's own log entry
 
 ### Citation
 
-- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/trace.jsonl`
+- `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/logs/trace.jsonl`
   — `venue_search`, `get_weather`, `calculate_cost`, `generate_flyer`,
   `complete_task` events.
-- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/workspace/flyer.html`
+- `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/workspace/flyer.html`
   — final flyer facts (£356, £71, cloudy, 12°C).
 - `starter/edinburgh_research/integrity.py` — fact extraction and
   `verify_dataflow` implementation.
 - `starter/edinburgh_research/tools.py` — `generate_flyer` sanitised
-  log args preventing circular self-validation.
+  log args.
+- `starter/edinburgh_research/integrity.py` — `verify_dataflow` checks
+  producer outputs only, preventing circular self-validation.
 
 ---
 
@@ -126,19 +128,19 @@ tickets whose tool argument matches `venue_search`. That count can be
 monitored deterministically with no LLM judge: alert when
 `venue_search_count > 5`, or when the same tool is called repeatedly
 with small argument perturbations. The committed Ex7 run gives a
-healthy contrast: `sess_057c0d8139e6` has bounded round-trip behaviour,
+healthy contrast: `sess_1d066b03335a` has bounded round-trip behaviour,
 visible bridge state transitions, and only the expected
-research/handoff tickets (`tk_17971d20`, `tk_7afc5328`). In a real
+research/handoff tickets (`tk_8f86c41e`, `tk_1503b962`). In a real
 pub-booking service, that is exactly the primitive I would build
 operational metrics around — tickets are durable, auditable evidence
 of what the agent actually did.
 
 ### Citation
 
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/tickets/`
   — bounded healthy ticket set for comparison (4 tickets across 2
   rounds: 2 planner.plan + 2 executor.run_subgoal).
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/trace.jsonl`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/trace.jsonl`
   — two bridge rounds, four state transitions, then completion.
 - `starter/edinburgh_research/tools.py` — `_spiral_check` defensive
   in-tool guard (threshold > 3 returns cached result with explicit

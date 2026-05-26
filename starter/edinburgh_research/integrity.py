@@ -112,6 +112,33 @@ def fact_appears_in_log(fact: Any, log: list[ToolCallRecord] | None = None) -> b
     return any(_scan(r.output) or _scan(r.arguments) for r in records)
 
 
+def _fact_appears_in_producer_output(fact: Any, log: list[ToolCallRecord] | None = None) -> bool:
+    """Return True only when a fact was produced by a non-renderer tool output.
+
+    ``fact_appears_in_log`` is kept as the public helper used by the
+    starter tests; it scans both arguments and outputs.  The dataflow
+    validator itself must be stricter: a flyer fact is valid only if it
+    appeared in the *output* of a producer tool such as ``get_weather``
+    or ``calculate_cost``.  It must not be allowed to validate itself
+    because ``generate_flyer`` received the same value in its arguments.
+    That was the self-verifying validation bug called out in office hours.
+    """
+    records = log if log is not None else _TOOL_CALL_LOG
+    target = str(fact).lower().strip("£°c ")
+
+    def _scan(obj: Any) -> bool:
+        if isinstance(obj, (str, int, float)):
+            return str(obj).lower().strip("£°c ") == target
+        if isinstance(obj, dict):
+            return any(_scan(v) for v in obj.values())
+        if isinstance(obj, (list, tuple, set)):
+            return any(_scan(v) for v in obj)
+        return False
+
+    ignored_renderers = {"generate_flyer"}
+    return any(r.tool_name not in ignored_renderers and _scan(r.output) for r in records)
+
+
 # ---------------------------------------------------------------------------
 # verify_dataflow — the main check
 # ---------------------------------------------------------------------------
@@ -141,7 +168,7 @@ def verify_dataflow(flyer_content: str) -> IntegrityResult:
     verified: list[str] = []
     unverified: list[str] = []
     for fact in deduped:
-        if fact_appears_in_log(fact):
+        if _fact_appears_in_producer_output(fact):
             verified.append(fact)
         else:
             unverified.append(fact)
@@ -174,6 +201,7 @@ __all__ = [
     "extract_temperature_facts",
     "extract_testid_facts",
     "fact_appears_in_log",
+    "_fact_appears_in_producer_output",
     "record_tool_call",
     "verify_dataflow",
 ]

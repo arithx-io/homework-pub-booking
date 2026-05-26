@@ -44,6 +44,8 @@ responses:
     - text: "Booking confirmed. Reference: {booking_reference}."
   utter_booking_rejected:
     - text: "Sorry, we can't accept this booking. Reason: {validation_error}"
+  utter_research_requested:
+    - text: "Structured confirmation cannot complete this booking. Please research an alternative."
 
 actions:
   - action_validate_booking

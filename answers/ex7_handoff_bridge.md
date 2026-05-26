@@ -27,7 +27,7 @@ implementation, so `logs/handoffs/round_1_forward.json` is now
 populated and `ipc/handoff_to_structured.json` holds round 2's
 payload as expected.)
 
-**End-to-end evidence (session `sess_057c0d8139e6`).** Round 1 starts
+**End-to-end evidence (session `sess_1d066b03335a`).** Round 1 starts
 with a loop request for party size 12 near Haymarket. The trace
 shows `venue_search(near='Haymarket', party_size=12)` returning
 **zero results** — Haymarket Tap only has 8 seats. The executor
@@ -51,14 +51,14 @@ is a one-line `--real` wrapper for consistency.
 
 ## Citations
 
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/trace.jsonl`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/trace.jsonl`
   — round 1 rejection (party_too_large) and round 2 completion.
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/handoffs/round_1_forward.json`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/handoffs/round_1_forward.json`
   — archived round-1 forward handoff (Haymarket Tap, party_size=12).
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/ipc/handoff_to_structured.json`
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/ipc/handoff_to_structured.json`
   — final live handoff payload (The Royal Oak, party_size=6).
-- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/tk_17971d20/`
-  — round 1 executor ticket; `tk_7afc5328` is round 2.
+- `sessions/examples/ex7-handoff-bridge/sess_1d066b03335a/logs/tickets/tk_8f86c41e/`
+  — round 1 executor ticket; `tk_1503b962` is round 2.
 - `starter/handoff_bridge/bridge.py` — bounded round-trip state
   machine + corrected IPC cleanup (uses `session.ipc_dir`).
 - `Makefile` — added `ex7-real` target.

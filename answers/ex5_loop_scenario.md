@@ -2,7 +2,7 @@
 
 ## Your answer
 
-In my Ex5 session `sess_df01eee6ce9e`, the planner produced two subgoals
+In my Ex5 session `sess_eff9faaddd54`, the planner produced two subgoals
 both with `assigned_half: "loop"`:
 - `sg_1`: "research Edinburgh venues near Haymarket for a party of 6"
 - `sg_2`: "produce an HTML flyer with the chosen venue, weather, and cost"
@@ -12,8 +12,8 @@ in parallel — `venue_search`, `get_weather`, `calculate_cost` — all
 registered with `parallel_safe=True` because they only read fixtures
 under `sample_data/`. It then completed `sg_2` with `generate_flyer`
 (`parallel_safe=False` — it writes `workspace/flyer.html`) and finally
-`complete_task`. Ticket-level proof: `tk_b1cc88cc` (planner.plan),
-`tk_870a87c1` (executor.run_subgoal/sg_1), `tk_b8d3c526`
+`complete_task`. Ticket-level proof: `tk_74097cf1` (planner.plan),
+`tk_0caa3f69` (executor.run_subgoal/sg_1), `tk_3e770517`
 (executor.run_subgoal/sg_2), all `success`.
 
 Two cohort-relevant fixes I applied:
@@ -29,20 +29,21 @@ Two cohort-relevant fixes I applied:
 2. **Non-circular `generate_flyer` logging.** `generate_flyer` records
    to `_TOOL_CALL_LOG` (the docstring requires it), but only with
    `{"path": "workspace/flyer.html", "bytes_written": N}` and a digest
-   of arg *keys* — never the rendered fact values. Without this,
-   `verify_dataflow` could "verify" a fact by finding it in
-   `generate_flyer`'s own argument log (circular self-validation
-   bug Gareth flagged in the Discord). My `verify_dataflow` ran clean:
+   of arg *keys* — never the rendered fact values. In addition,
+   `verify_dataflow` checks producer tool *outputs* only and ignores
+   `generate_flyer` as a renderer. Without both guards, a fact could
+   be "verified" by finding itself in `generate_flyer`'s own argument
+   log (circular self-validation bug Gareth flagged in Discord). My `verify_dataflow` ran clean:
    `dataflow OK: verified 4 fact(s) against tool outputs`.
 
 ## Citations
 
-- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/workspace/flyer.html`
-- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/trace.jsonl`
+- `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/workspace/flyer.html`
+- `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/logs/trace.jsonl`
   — 3 executor.tool_called events, then 1 generate_flyer, then complete_task
-- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/tickets/`
+- `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/logs/tickets/`
   — three tickets all `success`
 - `starter/edinburgh_research/tools.py` — `_spiral_check` defensive guard,
   `calculate_cost` cohort fix, sanitised `generate_flyer` log args
 - `starter/edinburgh_research/integrity.py` — `verify_dataflow`,
-  `fact_appears_in_log`
+  `_fact_appears_in_producer_output`

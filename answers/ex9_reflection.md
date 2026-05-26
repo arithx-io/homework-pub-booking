@@ -8,29 +8,39 @@
 ### Your answer
 
 Strictly, my Ex7 logs do **not** show the planner assigning work directly
-to the structured half. In `sess_1d066b03335a`, the planner emits one
-loop subgoal per round; the actual handoff is an executor-level action
-inside that loop. The relevant point is round 1 of `logs/trace.jsonl`:
-the executor first calls `venue_search` with `near="Haymarket"`,
-`party_size=12`, and `budget_max_gbp=2000`. **That call returns
-`0 result(s)`** — Haymarket Tap has 8 seats; party_size=12 doesn't
-match. The next executor event still calls `handoff_to_structured`
-with a Haymarket Tap payload and the explicit reason: *"loop half
-identified a candidate venue; passing to structured half for
-confirmation under policy rules."*
+to the structured half. In `sess_1d066b03335a` the planner ran twice (once
+per round). Both planner tickets contain a single subgoal whose literal
+JSON field reads `"assigned_half": "loop"`:
+
+- `logs/tickets/tk_79f1774e/raw_output.json` (round 1):
+  `{"id": "sg_1", "description": "find venue near haymarket for 12",
+  "assigned_half": "loop", ...}`
+- `logs/tickets/tk_da11db74/raw_output.json` (round 2):
+  `{"id": "sg_1", "description": "retry with larger venue after
+  rejection", "assigned_half": "loop", ...}`
+
+So the planner never emitted `assigned_half="structured"`. The actual
+handoff is an executor-level action inside the loop subgoal. Round 1
+of `logs/trace.jsonl`: the executor calls `venue_search` with
+`near="Haymarket"`, `party_size=12`, `budget_max_gbp=2000`. **That call
+returns `0 result(s)`** — Haymarket Tap has 8 seats; party_size=12
+doesn't match. The very next executor event still calls
+`handoff_to_structured` with a Haymarket Tap payload and the explicit
+reason: *"loop half identified a candidate venue; passing to structured
+half for confirmation under policy rules."*
 
 This is worth naming precisely. The signal was not a clean planner
 `assigned_half="structured"` field; it was the executor deciding the
 booking data should be adjudicated by the rule-bound half. The trace
 also exposes a semantic weakness: the first handoff was not
 well-supported by the immediately preceding `venue_search` result
-because that result had `count=0`. The structured half then did its
-job anyway: it rejected the proposal with `party_too_large`
+because that result had count=0. The structured half then did its job
+anyway: it rejected the proposal with `party_too_large`
 (`session.state_changed from=structured to=loop round=1`), and the
 bridge produced a reverse handoff back to the loop. Round 2 shows
 recovery: the loop proposes a smaller party at The Royal Oak and the
-structured half moves the session to complete (BK-B7655866). This
-makes the architectural lesson sharper — the loop can produce
+structured half moves the session to complete (BK-B7655866). The
+architectural lesson is sharper as a result — the loop can produce
 imperfect proposals, so the structured half and the bridge's state
 transitions are not optional; they are the safety boundary.
 
@@ -145,12 +155,3 @@ of what the agent actually did.
 - `starter/edinburgh_research/tools.py` — `_spiral_check` defensive
   in-tool guard (threshold > 3 returns cached result with explicit
   STOP hint).
-
-### Q3 — alternative phrasing (older slide-deck draft)
-
-If the question is read as *"if you could keep only one
-sovereign-agent primitive, which would it be?"* — session
-directories. Tickets, trace logs, IPC files, workspace artifacts,
-and final answers are all inspectable because the session directory
-is the unit of state. Reconstructing a failed agent run without
-that directory boundary becomes archaeology.

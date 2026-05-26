@@ -1,2 +1,0 @@
-{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T00:48:24.426366+00:00", "payload": {"text": "Hi, I'd like to book a table for 6 next Saturday at 7pm, deposit \u00a3100.", "turn": 0, "mode": "text"}}
-{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T00:48:26.705617+00:00", "payload": {"text": "Aye, we can do that. I'll pencil you in for next Saturday at 7pm. What's the contact number?", "turn": 0, "mode": "text"}}

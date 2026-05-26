@@ -215,6 +215,37 @@ def calculate_cost(
         record_tool_call("calculate_cost", args, spiral.output)
         return spiral
 
+    # Input validation — reject nonsensical values before they produce a
+    # plausible-looking but wrong total. Private tests probe negative
+    # party_size and zero duration; without this guard the formula
+    # happily returns a positive total for party_size=-1.
+    if not isinstance(party_size, int) or party_size < 1:
+        err = ToolError(
+            code="SA_TOOL_INVALID_INPUT",
+            message=f"party_size must be a positive integer, got {party_size!r}",
+        )
+        output = {"venue_id": venue_id, "error": str(err)}
+        record_tool_call("calculate_cost", args, output)
+        return ToolResult(
+            success=False,
+            output=output,
+            summary=f"calculate_cost: invalid party_size {party_size!r}",
+            error=err,
+        )
+    if not isinstance(duration_hours, int) or duration_hours < 1:
+        err = ToolError(
+            code="SA_TOOL_INVALID_INPUT",
+            message=f"duration_hours must be a positive integer, got {duration_hours!r}",
+        )
+        output = {"venue_id": venue_id, "error": str(err)}
+        record_tool_call("calculate_cost", args, output)
+        return ToolResult(
+            success=False,
+            output=output,
+            summary=f"calculate_cost: invalid duration_hours {duration_hours!r}",
+            error=err,
+        )
+
     catering = _load_fixture("catering.json")
     venues = _load_fixture("venues.json")
 

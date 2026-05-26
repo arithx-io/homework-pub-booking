@@ -36,10 +36,16 @@ is the cohort-tested sweet spot for typical room noise.
 `ManagerPersona` is system-prompted as Alasdair MacLeod, Haymarket
 Tap manager, with explicit rules (party ≤ 8, deposit ≤ £300).
 Llama-3.3-70B at `temperature=0.0` keeps replies deterministic.
-Session `sess_aa199f21b757` shows a 1-turn text exchange where
-the live model accepted an in-policy booking with a properly
-in-character reply: *"Aye, we can do that. I'll pencil you in for
-next Saturday at 7pm. What's the contact number?"*
+Session `sess_92851b66ea4b` shows a 4-turn text exchange where the
+live model handled an in-policy booking entirely in character. Turn 0
+(user): *"book a table for 6 next Saturday at 19:30, £200 deposit,
+bar snacks"*. Turn 0 (Alasdair): *"Aye, we can do that. I'll pencil
+you in for next Saturday at 19:30. What's the contact number?"*
+Turns 1–3 walk through catering options, confirm the booking
+("Aye, confirmed for next Saturday at 19:30"), and emit a reference
+(`HM123`). All four turns carry `mode: "text"` in their trace
+payloads. Note the Scots dialect ("Aye", "gie ye the details") —
+that's the persona system prompt working.
 
 ## Citations
 
@@ -48,6 +54,6 @@ next Saturday at 7pm. What's the contact number?"*
   threshold=250
 - `starter/voice_pipeline/manager_persona.py` — `ManagerPersona`,
   `MANAGER_SYSTEM_PROMPT` (rules section intact)
-- `sessions/homework/ex8/sess_aa199f21b757/logs/trace.jsonl` — one
-  `voice.utterance_in` + one `voice.utterance_out`, both
-  `mode: "text"`, Alasdair in character
+- `sessions/homework/ex8/sess_92851b66ea4b/logs/trace.jsonl` — four
+  `voice.utterance_in` + four `voice.utterance_out` events, all
+  `mode: "text"`, Alasdair consistently in character across turns.

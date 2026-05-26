@@ -41,6 +41,13 @@ Two cohort fixes I applied here:
    `verify_dataflow` runs clean: `dataflow OK: verified 6 fact(s)
    against tool outputs`.
 
+3. A `_coerce_int` helper at the top of `tools.py`. Real-LLM mode
+   (Llama/Qwen/Gemma via Nebius) routinely passes numeric args as
+   JSON strings (`{"party_size": "6"}`). The strict `isinstance(x,
+   int)` validation I had originally would reject every real-LLM
+   call. Coerce best-effort first; downstream validation still
+   catches None, dicts, and negatives.
+
 ## Citations
 
 - `sessions/examples/ex5-edinburgh-research/sess_eff9faaddd54/workspace/flyer.html`

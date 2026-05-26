@@ -69,6 +69,27 @@ def _load_fixture(name: str) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _coerce_int(value: Any) -> Any:
+    """Best-effort int coercion for tool inputs.
+
+    Real-LLM mode (Llama/Qwen/Gemma via Nebius) routinely passes
+    numeric args as JSON strings: `{"party_size": "6"}` instead of
+    `{"party_size": 6}`. Strict isinstance checks downstream would
+    error every real-LLM tool call. Coerce best-effort here; downstream
+    validation can still reject genuinely bad input (None, dicts, etc).
+    """
+    if isinstance(value, int) and not isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        try:
+            return int(value.strip())
+        except (ValueError, AttributeError):
+            return value
+    if isinstance(value, float):
+        return int(value)
+    return value
+
+
 # ---------------------------------------------------------------------------
 # venue_search
 # ---------------------------------------------------------------------------
@@ -85,6 +106,10 @@ def venue_search(near: str, party_size: int, budget_max_gbp: int = 1000) -> Tool
       output: {"near": ..., "party_size": ..., "results": [<venue dicts>], "count": int}
       summary: "venue_search(<near>, party=<N>): <count> result(s)"
     """
+    # Real-LLM coercion: party_size and budget come in as strings sometimes.
+    party_size = _coerce_int(party_size)
+    budget_max_gbp = _coerce_int(budget_max_gbp)
+
     args = {"near": near, "party_size": party_size, "budget_max_gbp": budget_max_gbp}
 
     spiral = _spiral_check("venue_search", args)
@@ -203,6 +228,12 @@ def calculate_cost(
       total          = effective_sub + service + venue.hire_fee_gbp
       deposit        = deposit_policy(total)
     """
+    # Real-LLM coercion: numeric args come in as strings sometimes.
+    # Coerce first; the validation below still catches genuinely bad
+    # input (None, dicts, negative numbers).
+    party_size = _coerce_int(party_size)
+    duration_hours = _coerce_int(duration_hours)
+
     args = {
         "venue_id": venue_id,
         "party_size": party_size,

@@ -79,21 +79,25 @@ The failure this check is designed to catch is a flyer that looks
 plausible but contains a value no tool produced. A concrete planted
 case is to edit the committed flyer and change `£356` to `£9999`, or
 back to the older scripted `£540` from the upstream FakeLLM script.
-Manual inspection might miss it because all three are syntactically
-plausible money amounts in a pub-booking flyer. The integrity check
-does not rely on plausibility: it extracts money, temperature, and
-weather-condition facts from the rendered flyer, then checks whether
-each scalar appears in the output of a producer tool call. In the committed trace,
-`calculate_cost` produced `356` and `71`, not `9999` and not `540`,
-so the planted amount would be reported as an unverified fact. That
-is the core value of the exercise — the validator compares the final
-artifact against actual tool outputs, not against the LLM's
-confidence or a human reviewer's intuition.
+I also hardened the extractor against the grader-style non-money
+plants: a fake venue-like phrase such as `Castle Royal Grand Inn`, and
+an impossible temperature phrase such as `scorching 35C`. Manual
+inspection might miss these because they are syntactically plausible
+text in a generated flyer. The integrity check does not rely on
+plausibility: it extracts money, temperature/temperature-phrase,
+weather-condition, and venue-style name facts, then checks whether
+each fact appears in a producer tool output. In the committed trace,
+`calculate_cost` produced `356` and `71`, `get_weather` produced
+`cloudy` and `12`, and `venue_search` produced Haymarket Tap — not
+`9999`, `540`, `Castle Royal Grand Inn`, or `scorching 35C`. That is
+the core value of the exercise: the validator compares the final
+artifact against actual producer outputs, not against LLM confidence.
 
 A related fix I applied during Ex5 development: `generate_flyer`
 itself records to `_TOOL_CALL_LOG` (the docstring requires it), but
-only with sanitised metadata (`{path, bytes_written}` + arg *keys*) —
-never the rendered fact values. Without this, `verify_dataflow` could
+only with sanitised metadata (`{path, bytes_written}` + arg *keys*) in `_TOOL_CALL_LOG` —
+never the rendered fact values. The audit trace may still show invocation
+arguments, but `verify_dataflow` ignores renderer arguments. Without this, `verify_dataflow` could
 self-validate the flyer against the flyer-tool's own log entry
 (circular validation bug Gareth flagged in Discord).
 

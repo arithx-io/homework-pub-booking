@@ -29,12 +29,11 @@ Two cohort-relevant fixes I applied:
 2. **Non-circular `generate_flyer` logging.** `generate_flyer` records
    to `_TOOL_CALL_LOG` (the docstring requires it), but only with
    `{"path": "workspace/flyer.html", "bytes_written": N}` and a digest
-   of arg *keys* — never the rendered fact values. In addition,
+   of arg *keys* — never the rendered fact values in `_TOOL_CALL_LOG`. The full invocation arguments can still appear in the session trace for audit; the validator deliberately ignores renderer arguments. In addition,
    `verify_dataflow` checks producer tool *outputs* only and ignores
    `generate_flyer` as a renderer. Without both guards, a fact could
    be "verified" by finding itself in `generate_flyer`'s own argument
-   log (circular self-validation bug Gareth flagged in Discord). My `verify_dataflow` ran clean:
-   `dataflow OK: verified 4 fact(s) against tool outputs`.
+   log (circular self-validation bug Gareth flagged in Discord). My `verify_dataflow` now verifies the four scalar facts plus venue-style name/address facts. The rerun reports `dataflow OK: verified 6 fact(s) against tool outputs`. It also catches the local CI probe plants for `£9999`, `Castle Royal Grand Inn`, and `scorching 35C`.
 
 ## Citations
 

@@ -1,0 +1,20 @@
+{
+  "ticket_id": "tk_722c30e4",
+  "operation": "executor.run_subgoal/sg_1",
+  "started_at": "2026-05-26T00:49:35.625134+00:00",
+  "completed_at": "2026-05-26T00:49:35.629115+00:00",
+  "duration_ms": 3,
+  "outputs": [
+    {
+      "path": "/home/claude/hw/sessions/examples/ex7-handoff-bridge/sess_7141e7342034/logs/tickets/tk_722c30e4/raw_output.json",
+      "sha256": "963936591e8325e10ac784304c2ae4f56b9096a52e37f24738d843a8321c462d",
+      "size_bytes": 1626,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "tool_calls": 2,
+    "turns_used": 2,
+    "handoff_requested": true
+  }
+}

@@ -181,9 +181,7 @@ async def make_ex7_session() -> str:
                 structured_half=RasaStructuredHalf(rasa_url=mock_url),
                 max_rounds=3,
             )
-            result = await bridge.run(
-                session, {"task": "book for party of 12 in Haymarket"}
-            )
+            result = await bridge.run(session, {"task": "book for party of 12 in Haymarket"})
             print(f"  ex7 session: {session.directory}")
             print(f"    outcome:    {result.outcome}")
             print(f"    rounds:     {result.rounds}")

@@ -26,11 +26,25 @@ slot-filling concern; it still exists in `flows.yml` so the Rasa surface
 matches the assignment and any grader that checks for the declared
 flow names.
 
-**Mock-mode sanity.** I ran `make ex6` (tier 1, stdlib mock Rasa)
-end-to-end: party=6, deposit=£200, both under the caps →
-`booking confirmed (ref=BK-7D401E9E)`. The mock server emits the
-same `custom.action` envelope as real Rasa, so the Python-side
-HTTP wiring is identical for both tiers.
+**Mock-mode sanity (tier 1).** `make ex6` runs against the stdlib mock
+Rasa: party=6, deposit=£200, both under the caps →
+`booking confirmed (ref=BK-7D401E9E)`. The mock server emits the same
+`custom.action` envelope as real Rasa, so the Python-side HTTP wiring
+is identical for both tiers.
+
+**Live-Rasa run (tier 2).** I also ran `make ex6-real` against a live
+Rasa Pro 3.x server (`rasa-actions` on :5055, `rasa-serve` on :5005,
+trained model `20260526-032549-tense-driver.tar.gz`). Captured as
+`sess_52330bc5de0e`. The live `CompactLLMCommandGenerator` parsed the
+`/confirm_booking` programmatic command, the flow ran
+`ActionValidateBooking`, and the `utter_booking_confirmed` template
+returned the same deterministic reference `BK-7D401E9E` via plain
+text (no `custom.action` field — live Rasa utterances don't emit
+custom payloads when only a response template is uttered). Added a
+text-fallback parser in `RasaStructuredHalf.run()` that extracts the
+`BK-XXXXXXXX` reference from `reply_text` when `custom.action` is
+absent, so the same Python contract works in both tiers without
+forking the parser.
 
 ## Citations
 
@@ -38,8 +52,14 @@ HTTP wiring is identical for both tiers.
   (5/5 fields normalised), `canonicalise_venue_id`, `parse_time_24h`,
   `parse_currency_gbp`, `parse_party_size`
 - `starter/rasa_half/structured_half.py` — `RasaStructuredHalf.run`,
-  reference/reason extractors, mock server (`_MockRasaHandler`)
+  `custom.action` parsing + text-fallback for live Rasa, mock server
+  (`_MockRasaHandler`)
 - `rasa_project/actions/actions.py` — `ActionValidateBooking` rule
   checks + reference generation
 - `rasa_project/data/flows.yml` — `confirm_booking`, `resume_from_loop`,
   and `request_research` flow entry points
+- `sessions/examples/ex6-rasa-half/sess_52330bc5de0e/session.json`
+  — live-Rasa run; `RasaStructuredHalf` is HTTP-only (no executor LLM)
+  so the session has no `trace.jsonl`, but `session.json` + `SESSION.md`
+  pin the run. `BK-7D401E9E` extracted from the live
+  `utter_booking_confirmed` reply.

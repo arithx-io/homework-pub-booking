@@ -193,19 +193,38 @@ class RasaStructuredHalf(StructuredHalf):
             if isinstance(text, str) and reply_text is None:
                 reply_text = text
             custom = msg.get("custom")
-            if not isinstance(custom, dict):
-                continue
-            action = custom.get("action")
-            if action == "committed":
+            if isinstance(custom, dict):
+                action = custom.get("action")
+                if action == "committed":
+                    confirmed = True
+                    booking_reference = custom.get(
+                        "booking_reference"
+                    ) or _extract_reference_from_text(text or "")
+                elif action == "rejected":
+                    rejected = True
+                    rejection_reason = (
+                        custom.get("reason")
+                        or _extract_reason_from_text(text or "")
+                        or "unspecified"
+                    )
+
+        # Text-only fallback for live Rasa. The mock server emits
+        # `custom.action` events alongside text, but live Rasa
+        # (CompactLLMCommandGenerator + confirm_booking flow) only
+        # returns the uttered text — no `custom` payload — because
+        # `utter_booking_confirmed` is a plain response. Parse the
+        # text itself for the BK-XXXXXXXX reference or for a
+        # "Reason: <code>" suffix from utter_booking_rejected.
+        if not confirmed and not rejected and reply_text:
+            ref_from_text = _extract_reference_from_text(reply_text)
+            if ref_from_text:
                 confirmed = True
-                booking_reference = custom.get("booking_reference") or _extract_reference_from_text(
-                    text or ""
-                )
-            elif action == "rejected":
-                rejected = True
-                rejection_reason = (
-                    custom.get("reason") or _extract_reason_from_text(text or "") or "unspecified"
-                )
+                booking_reference = ref_from_text
+            else:
+                reason_from_text = _extract_reason_from_text(reply_text)
+                if reason_from_text:
+                    rejected = True
+                    rejection_reason = reason_from_text
 
         if confirmed and not rejected:
             return HalfResult(

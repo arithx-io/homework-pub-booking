@@ -179,7 +179,9 @@ class HandoffBridge:
                 # Fail-closed IPC discipline: only one forward handoff file
                 # may exist at a time. Move the round-N forward handoff into
                 # the audit dir so the next round starts clean.
-                forward_path = session.ipc_input_dir / "handoff_to_structured.json"
+                # NB: write_handoff() puts the file at session.ipc_dir /
+                # "handoff_to_<to_half>.json" — NOT under ipc_input_dir.
+                forward_path = session.ipc_dir / "handoff_to_structured.json"
                 if forward_path.exists():
                     audit_dir = session.handoffs_audit_dir
                     audit_dir.mkdir(parents=True, exist_ok=True)

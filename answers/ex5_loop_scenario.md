@@ -2,7 +2,7 @@
 
 ## Your answer
 
-In my Ex5 session `sess_c2a81580a810`, the planner produced two subgoals
+In my Ex5 session `sess_df01eee6ce9e`, the planner produced two subgoals
 both with `assigned_half: "loop"`:
 - `sg_1`: "research Edinburgh venues near Haymarket for a party of 6"
 - `sg_2`: "produce an HTML flyer with the chosen venue, weather, and cost"
@@ -12,8 +12,8 @@ in parallel — `venue_search`, `get_weather`, `calculate_cost` — all
 registered with `parallel_safe=True` because they only read fixtures
 under `sample_data/`. It then completed `sg_2` with `generate_flyer`
 (`parallel_safe=False` — it writes `workspace/flyer.html`) and finally
-`complete_task`. Ticket-level proof: `tk_147fdc91` (planner.plan),
-`tk_7ce82acc` (executor.run_subgoal/sg_1), `tk_56b579c8`
+`complete_task`. Ticket-level proof: `tk_b1cc88cc` (planner.plan),
+`tk_870a87c1` (executor.run_subgoal/sg_1), `tk_b8d3c526`
 (executor.run_subgoal/sg_2), all `success`.
 
 Two cohort-relevant fixes I applied:
@@ -37,10 +37,10 @@ Two cohort-relevant fixes I applied:
 
 ## Citations
 
-- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/workspace/flyer.html`
-- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/logs/trace.jsonl`
+- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/workspace/flyer.html`
+- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/trace.jsonl`
   — 3 executor.tool_called events, then 1 generate_flyer, then complete_task
-- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/logs/tickets/`
+- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/tickets/`
   — three tickets all `success`
 - `starter/edinburgh_research/tools.py` — `_spiral_check` defensive guard,
   `calculate_cost` cohort fix, sanitised `generate_flyer` log args

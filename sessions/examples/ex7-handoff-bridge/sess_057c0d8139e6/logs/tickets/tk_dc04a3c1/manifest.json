@@ -1,0 +1,21 @@
+{
+  "ticket_id": "tk_dc04a3c1",
+  "operation": "planner.plan",
+  "started_at": "2026-05-26T01:34:32.270804+00:00",
+  "completed_at": "2026-05-26T01:34:32.272007+00:00",
+  "duration_ms": 1,
+  "outputs": [
+    {
+      "path": "/home/claude/hw/sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/tk_dc04a3c1/raw_output.json",
+      "sha256": "70f5833b8ed628c42977c465c1823c325549c9b003e16728e57110af81342414",
+      "size_bytes": 239,
+      "content_type": "application/json"
+    }
+  ],
+  "metrics": {
+    "num_subgoals": 1,
+    "llm_tokens_in": 10,
+    "llm_tokens_out": 10,
+    "llm_model": "fake"
+  }
+}

@@ -1,49 +1,53 @@
 # Ex9 — Reflection
 
-> Questions per ASSIGNMENT.md §Ex9 (lines 216–228). All citations resolve to
-> files under `sessions/` in this repo, produced by my own runs.
+> Questions per `ASSIGNMENT.md` Ex9. All citations below point to artifacts
+> already committed under `sessions/` in this repo.
 
 ## Q1 — Planner handoff decision
 
 ### Your answer
 
-In my Ex7 session `sess_7141e7342034`, the planner produced one subgoal per
-round, each with `assigned_half: "loop"` — never assigning anything directly
-to the structured half. The handoff was an **executor-level** decision made
-inside the loop, not a planner-level subgoal routing.
+Strictly, my Ex7 logs do **not** show the planner assigning work directly
+to the structured half. In `sess_057c0d8139e6`, the planner emits one
+loop subgoal per round; the actual handoff is an executor-level action
+inside that loop. The relevant point is round 1 of `logs/trace.jsonl`:
+the executor first calls `venue_search` with `near="Haymarket"`,
+`party_size=12`, and `budget_max_gbp=2000`. **That call returns
+`0 result(s)`** — Haymarket Tap has 8 seats; party_size=12 doesn't
+match. The next executor event still calls `handoff_to_structured`
+with a Haymarket Tap payload and the explicit reason: *"loop half
+identified a candidate venue; passing to structured half for
+confirmation under policy rules."*
 
-The executor's second turn within subgoal `sg_1` invoked the
-`handoff_to_structured` tool. The trace event records the explicit reason
-(`logs/trace.jsonl`, `executor.tool_called` for round 1):
-
-> `reason`: "loop half identified a candidate venue; passing to structured
-> half for confirmation under policy rules"
-> `data`: `{venue_id: "Haymarket Tap", party_size: "12", date: "2026-04-25"}`
-
-The signal that caused the decision was the loop having gathered enough
-context (a candidate venue from `venue_search`) to ask the question only
-the structured half can answer: "does this booking pass the rules?" That
-question — *deterministic policy enforcement* — is precisely the structured
-half's job. The loop calls `handoff_to_structured` whenever it has
-enriched data ready for adjudication. Tickets `tk_722c30e4` (round 1)
-and `tk_74beabfa` (round 2) record this — each ends with
-"Handoff to structured half requested."
-
-The broader pattern is interesting: the **planner** treats the whole
-research-and-confirm task as one loop subgoal, because exploration is
-loop-shaped; the **executor** decides at runtime that part of the work
-needs structured handling. The architectural split happens in
-intermediate execution, not in upfront planning. That's why
-`session.state_changed` events fire at the bridge level
-(`from: loop → to: structured`, `round: 1`), not at the planner level.
+This is worth naming precisely. The signal was not a clean planner
+`assigned_half="structured"` field; it was the executor deciding the
+booking data should be adjudicated by the rule-bound half. The trace
+also exposes a semantic weakness: the first handoff was not
+well-supported by the immediately preceding `venue_search` result
+because that result had `count=0`. The structured half then did its
+job anyway: it rejected the proposal with `party_too_large`
+(`session.state_changed from=structured to=loop round=1`), and the
+bridge produced a reverse handoff back to the loop. Round 2 shows
+recovery: the loop proposes a smaller party at The Royal Oak and the
+structured half moves the session to complete (BK-B7655866). This
+makes the architectural lesson sharper — the loop can produce
+imperfect proposals, so the structured half and the bridge's state
+transitions are not optional; they are the safety boundary.
 
 ### Citation
 
-- `sessions/examples/ex7-handoff-bridge/sess_7141e7342034/logs/trace.jsonl`
-  — `executor.tool_called` events for `handoff_to_structured` in both rounds
-- `sessions/examples/ex7-handoff-bridge/sess_7141e7342034/logs/tickets/tk_722c30e4/summary.md`
-- `sessions/examples/ex7-handoff-bridge/sess_7141e7342034/ipc/handoff_to_structured.json`
-  — final forward payload, round 2
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/trace.jsonl`
+  — round 1 `venue_search` (0 result(s)), `handoff_to_structured`,
+  `session.state_changed` events (rejection reason `party_too_large`).
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/tk_17971d20/`
+  — round 1 executor ticket; raw_output.json records the
+  zero-result `venue_search` AND the subsequent `handoff_to_structured`
+  call inside the same subgoal.
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/handoffs/round_1_forward.json`
+  — the archived round-1 handoff payload (Haymarket Tap, party=12)
+  preserved after the structured half rejected.
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/ipc/handoff_to_structured.json`
+  — final live handoff payload (Royal Oak, party=6) from round 2.
 
 ---
 
@@ -51,46 +55,49 @@ intermediate execution, not in upfront planning. That's why
 
 ### Your answer
 
-My integrity check caught a real fabrication during Ex5 development — not
-a planted one, an inconsistency between the FakeLLMClient's scripted
-trajectory and the (cohort-corrected) `calculate_cost` formula.
+The committed Ex5 session `sess_df01eee6ce9e` is the clean run after
+fixing the dataflow problem. It shows why the integrity check matters.
+The trace records three factual producer calls before flyer generation:
+`get_weather` returns `cloudy` and `12C`; `calculate_cost(haymarket_tap,
+6)` returns `total £356` and `deposit £71`; then `generate_flyer`
+writes `workspace/flyer.html`. The final flyer contains exactly those
+primitive facts: weather `cloudy`, temperature `12°C`, total `£356`,
+and deposit `£71`. `verify_dataflow` therefore reports
+`dataflow OK: verified 4 fact(s) against tool outputs`.
 
-Background: the upstream `run.py` scripted `total_gbp: 540` and
-`deposit_required_gbp: 0` in the `event_details` passed to
-`generate_flyer`. After I applied the cohort's calculate_cost fix
-(`max(subtotal, min_spend)` instead of `+`), my tool returned
-`total_gbp: 356, deposit_required_gbp: 71` for the same inputs
-(`haymarket_tap, party=6, duration=3, bar_snacks`). The first
-`make ex5` exited with:
+The failure this check is designed to catch is a flyer that looks
+plausible but contains a value no tool produced. A concrete planted
+case is to edit the committed flyer and change `£356` to `£9999`, or
+back to the older scripted `£540` from the upstream FakeLLM script.
+Manual inspection might miss it because all three are syntactically
+plausible money amounts in a pub-booking flyer. The integrity check
+does not rely on plausibility: it extracts money, temperature, and
+weather-condition facts from the rendered flyer, then checks whether
+each scalar appears in the tool-call log. In the committed trace,
+`calculate_cost` produced `356` and `71`, not `9999` and not `540`,
+so the planted amount would be reported as an unverified fact. That
+is the core value of the exercise — the validator compares the final
+artifact against actual tool outputs, not against the LLM's
+confidence or a human reviewer's intuition.
 
-> `dataflow FAIL: 1 unverified fact(s): ['£540']`
-
-`verify_dataflow` extracted `£540` from the generated flyer, scanned
-`_TOOL_CALL_LOG`, and found `calculate_cost` had logged 356 — not 540.
-The 540 was orphan data: it appeared in the flyer's text, but no tool
-call had ever produced that value. Manual inspection wouldn't have
-flagged it; £540 is a plausible-looking number for six people over
-three hours and the human eye doesn't cross-reference. The check did,
-mechanically, by comparing the rendered fact set to ground truth in
-`_TOOL_CALL_LOG`.
-
-Fixing the FakeLLM script to use the actual computed values brought
-`sess_c2a81580a810` to a green check:
-> `dataflow OK: verified 4 fact(s) against tool outputs`
-
-The generalisable lesson: an LLM trained on plausible numbers is
-exactly as likely to write 540 as 356. Bolting on a dataflow check
-that compares the rendered output's primitive facts to the actual
-tool outputs catches the entire class of "the model made up a
-reasonable-looking number" failure — without needing to model what
-"reasonable" means.
+A related fix I applied during Ex5 development: `generate_flyer`
+itself records to `_TOOL_CALL_LOG` (the docstring requires it), but
+only with sanitised metadata (`{path, bytes_written}` + arg *keys*) —
+never the rendered fact values. Without this, `verify_dataflow` could
+self-validate the flyer against the flyer-tool's own log entry
+(circular validation bug Gareth flagged in Discord).
 
 ### Citation
 
-- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/workspace/flyer.html`
-- `sessions/examples/ex5-edinburgh-research/sess_c2a81580a810/logs/trace.jsonl`
-- `starter/edinburgh_research/integrity.py` — `verify_dataflow`,
-  `fact_appears_in_log`
+- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/logs/trace.jsonl`
+  — `venue_search`, `get_weather`, `calculate_cost`, `generate_flyer`,
+  `complete_task` events.
+- `sessions/examples/ex5-edinburgh-research/sess_df01eee6ce9e/workspace/flyer.html`
+  — final flyer facts (£356, £71, cloudy, 12°C).
+- `starter/edinburgh_research/integrity.py` — fact extraction and
+  `verify_dataflow` implementation.
+- `starter/edinburgh_research/tools.py` — `generate_flyer` sanitised
+  log args preventing circular self-validation.
 
 ---
 
@@ -98,52 +105,50 @@ reasonable-looking number" failure — without needing to model what
 
 ### Your answer
 
-**Failure mode**: Loop spiral on `venue_search`. Qwen3-32B (the cohort's
-executor model) repeatedly invokes the same tool with mildly varied
-arguments (`party_size: 6 → 7 → 5`, `budget: 800 → 1200 → 600`) when
-the first result doesn't match its expectations, instead of recognising
-that the fixture has only the seven venues it's already enumerated.
-The cohort has documented this exact symptom in
-`docs/real-mode-failures.md`; Lucia reported it on May 19 and at
-£0.10–£0.20 per spiral run the unit cost is small but it explodes
-across thousands of bookings/day in production. The Nebius bill
-quietly doubles; conversion rate quietly halves; no user-visible
-crash.
+**Failure mode**: loop spiral on venue research. In production I would
+expect the loop half to repeat `venue_search` with slightly varied
+arguments after a partial or disappointing result, especially under
+real-LLM execution. A model can make that look like progress — change
+the area, budget, or party size, call the same read tool again, then
+continue burning tokens without a user-visible crash. This is worse
+than a hard exception because it degrades cost and latency while still
+producing a superficially normal session. The cohort has documented
+this exact symptom in `docs/real-mode-failures.md`; Lucia reported it
+on May 19.
 
-**Primitive that surfaces it**: the **ticket state machine**. Every
-tool call produces a ticket directory under `logs/tickets/tk_<id>/`
-with `manifest.json`, `raw_output.json`, `state.json`, `summary.md`.
-Per-tool ticket counts — `grep -l '"operation":"venue_search"'
-logs/tickets/*/manifest.json | wc -l` — are a one-line diagnostic.
-A healthy session has 1–3 calls per tool. A spiral run has 8–20.
-The signal is **independent of LLM internals**: the framework doesn't
-care whether Qwen "thinks" it's making progress; it counts what
-actually happened. A production monitor reading session manifests
-(no LLM judge needed) can alert on `venue_search_count > 5` and
-surface every spiral within minutes.
-
-This is the same insight as Ex5's dataflow check, applied one level
-up: don't ask the LLM whether it's stuck (it'll say no), measure the
-output of its actions and compare. Tickets are commits; spirals are
-rebase wars; counting them is grep.
+**Primitive**: the ticket state machine. The useful signal is not the
+model's explanation; it is the sequence of recorded operations. Every
+planner and executor operation leaves a ticket under
+`logs/tickets/tk_<id>/` with `manifest.json`, `raw_output.json`,
+`state.json`, `summary.md`. A healthy session has a small bounded
+number of research calls. A spiral session has an abnormal count of
+tickets whose tool argument matches `venue_search`. That count can be
+monitored deterministically with no LLM judge: alert when
+`venue_search_count > 5`, or when the same tool is called repeatedly
+with small argument perturbations. The committed Ex7 run gives a
+healthy contrast: `sess_057c0d8139e6` has bounded round-trip behaviour,
+visible bridge state transitions, and only the expected
+research/handoff tickets (`tk_17971d20`, `tk_7afc5328`). In a real
+pub-booking service, that is exactly the primitive I would build
+operational metrics around — tickets are durable, auditable evidence
+of what the agent actually did.
 
 ### Citation
 
-- `starter/edinburgh_research/tools.py` — `_spiral_check` (defensive
-  in-tool guard I added; threshold > 3 returns cached result with
-  "STOP" hint in summary)
-- `sessions/examples/ex7-handoff-bridge/sess_7141e7342034/logs/tickets/`
-  — five tickets, none repeated → healthy run
-- Cohort discussion: `docs/real-mode-failures.md` (referenced in
-  README §"Real-mode failures are FEATURES")
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/tickets/`
+  — bounded healthy ticket set for comparison (4 tickets across 2
+  rounds: 2 planner.plan + 2 executor.run_subgoal).
+- `sessions/examples/ex7-handoff-bridge/sess_057c0d8139e6/logs/trace.jsonl`
+  — two bridge rounds, four state transitions, then completion.
+- `starter/edinburgh_research/tools.py` — `_spiral_check` defensive
+  in-tool guard (threshold > 3 returns cached result with explicit
+  STOP hint).
 
-### Q3 — alternative phrasing (older slide deck draft)
+### Q3 — alternative phrasing (older slide-deck draft)
 
 If the question is read as *"if you could keep only one
 sovereign-agent primitive, which would it be?"* — session
-directories. Tickets, state machines, IPC atomic rename, even the
-two-half split, can all be reconstructed from a session directory
-that still has `trace.jsonl` and `logs/tickets/`. The opposite isn't
-true: reconstructing a session directory from any one of the others
-is archaeology. Session-as-directory is the foundation; everything
-else is structure on top of it.
+directories. Tickets, trace logs, IPC files, workspace artifacts,
+and final answers are all inspectable because the session directory
+is the unit of state. Reconstructing a failed agent run without
+that directory boundary becomes archaeology.

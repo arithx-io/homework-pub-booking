@@ -52,12 +52,14 @@ async def probe() -> int:
         "SOVEREIGN_AGENT_LLM_BASE_URL",
         "https://api.tokenfactory.nebius.com/v1/",
     )
-    # Cheapest small model on Nebius — used only for the probe.
-    # Use google/gemma-2-2b-it (the 27b-fast variant was removed by
-    # Nebius in April 2026). Override with NEBIUS_SMOKE_MODEL env var if
-    # this stops working; the probe's job is auth + network, not any
-    # specific model being hosted.
-    model = os.environ.get("NEBIUS_SMOKE_MODEL", "google/gemma-2-2b-it")
+    # Probe-only model on Nebius. The probe's job is auth + network, not
+    # any specific model being hosted, so we pick a stable widely-available
+    # model. Override with NEBIUS_SMOKE_MODEL env var if Nebius rotates it
+    # out. (Older versions of this script defaulted to google/gemma-2-2b-it,
+    # which Nebius removed; meta-llama/Llama-3.3-70B-Instruct is the
+    # current stable choice and is the same model the manager persona
+    # uses in Ex8, so if this works, persona calls will work too.)
+    model = os.environ.get("NEBIUS_SMOKE_MODEL", "meta-llama/Llama-3.3-70B-Instruct")
 
     try:
         from openai import AsyncOpenAI

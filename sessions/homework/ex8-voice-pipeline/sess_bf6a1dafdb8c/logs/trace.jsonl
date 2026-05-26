@@ -1,0 +1,10 @@
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T05:59:56.881855+00:00", "payload": {"text": "Hello . I want to book a table for six people next Saturday at 7 p.m. .", "turn": 0, "mode": "voice"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T05:59:58.388093+00:00", "payload": {"text": "Aye, we can do that. I'll pencil you in for next Saturday at 7 p.m. What's the contact number?", "turn": 0, "mode": "voice"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T06:00:21.235398+00:00", "payload": {"text": "The contact number is oh seven 9123456 .", "turn": 1, "mode": "voice"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T06:00:22.669139+00:00", "payload": {"text": "Got it, 079123456. You're booked for next Saturday at 7 p.m.", "turn": 1, "mode": "voice"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T06:00:42.621865+00:00", "payload": {"text": "Bar , snacks , please . And the \u00a3200 deposit .", "turn": 2, "mode": "voice"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T06:00:43.748348+00:00", "payload": {"text": "Aye, bar and snacks it is. \u00a3200 deposit is fine. See you next Saturday.", "turn": 2, "mode": "voice"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T06:01:01.751670+00:00", "payload": {"text": "Please confirm . Could you give me a reference number ?", "turn": 3, "mode": "voice"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T06:01:02.654914+00:00", "payload": {"text": "Reference number's HM001. Confirmation's in the post.", "turn": 3, "mode": "voice"}}
+{"event_type": "voice.utterance_in", "actor": "user", "timestamp": "2026-05-26T06:01:14.172066+00:00", "payload": {"text": "Goodbye .", "turn": 4, "mode": "voice"}}
+{"event_type": "voice.utterance_out", "actor": "manager", "timestamp": "2026-05-26T06:01:15.097857+00:00", "payload": {"text": "Cheerio.", "turn": 4, "mode": "voice"}}

@@ -1,7 +1,7 @@
-# Session sess_928a3ebed75d
+# Session sess_bf6a1dafdb8c
 
 **Scenario:** ex8-voice-pipeline
-**Created:** 2026-05-26T05:13:29.337801+00:00
+**Created:** 2026-05-26T05:59:44.728342+00:00
 
 ## Your task
 
@@ -12,7 +12,7 @@ be added by the scenario author.)
 
 ## Task description
 
-Voice-mode booking dialog with Alasdair MacLeod, the Haymarket Tap manager. User books a table; manager validates against policy and issues a reference.
+Converse with Alasdair MacLeod (pub manager) to arrange a booking.
 
 ## Constraints
 
